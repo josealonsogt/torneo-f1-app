@@ -70,6 +70,19 @@ export default function GestionCarrerasScreen() {
     }
   };
 
+  const darSalida = async () => {
+    if (!carreraSeleccionada) return;
+    try {
+      const carreraRef = doc(db, "carreras", carreraSeleccionada.id);
+      await updateDoc(carreraRef, { estado: "en_curso" });
+      Alert.alert("¡Semáforo en verde! 🟢", "La carrera está EN CURSO. El público ya lo está viendo.");
+      cargarCarreras();
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "No se pudo cambiar el estado.");
+    }
+  };
+
   const guardarResultados = async () => {
     if (!carreraSeleccionada) return;
 
@@ -165,9 +178,20 @@ export default function GestionCarrerasScreen() {
               onChangeText={setHoraCarrera}
             />
             <Button title="Actualizar Hora" onPress={guardarHora} color="#2a9d8f" />
+
           </View>
         </View>
         {/* ------------------------------- */}
+
+        
+        {/* --- BOTÓN DE DAR SALIDA --- */}
+        {carreraSeleccionada.estado === "pendiente" && (
+          <View style={{ marginBottom: 20 }}>
+            <Button title="🟢 DAR SALIDA A LA CARRERA" onPress={darSalida} color="#2a9d8f" />
+          </View>
+        )}
+
+        
 
         {carreraSeleccionada.participantes.map((participante, index) => (
           <View key={participante.jugador_id} style={styles.filaPiloto}>

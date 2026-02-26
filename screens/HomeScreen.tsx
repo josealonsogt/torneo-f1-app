@@ -46,15 +46,14 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!jugadorId || !estadoJugador) return;
 
-    // Mapear estado del jugador → fase de la carrera que debe buscar
     const mapeoEstadoAFase: Record<EstadoJugador, string | null> = {
       inscrito: "clasificatoria",
       clasificado_semi_a: "semifinal_a",
       clasificado_semi_b: "semifinal_b",
       clasificado_final_b: "final_b",
       finalista: "final",
-      eliminado: null, // No tiene carrera
-      ganador: null, // Ya terminó
+      eliminado: null,
+      ganador: null,
     };
 
     const faseBuscada = mapeoEstadoAFase[estadoJugador];
@@ -64,10 +63,8 @@ export default function HomeScreen() {
       return;
     }
 
-    // Buscar la carrera de esa fase donde esté este jugador
     const carrerasRef = collection(db, "carreras");
     const q = query(carrerasRef, where("fase", "==", faseBuscada));
-
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let carreraEncontrada = null;
@@ -79,12 +76,10 @@ export default function HomeScreen() {
           ...datos 
         } as any; 
         
-        // ✅ Validación: Asegurarnos de que participantes existe y es un array
         if (!carrera.participantes || !Array.isArray(carrera.participantes)) {
-          return; // Saltar esta carrera si no tiene participantes válidos
+          return;
         }
         
-        // Verificar si este jugador está en los participantes
         const estaEnCarrera = carrera.participantes.some(
           (p: any) => p && p.jugador_id === jugadorId
         );
@@ -166,7 +161,15 @@ export default function HomeScreen() {
       {miCarrera && estadoJugador !== "eliminado" && estadoJugador !== "ganador" && (
         <View style={styles.tarjetaCarrera}>
           <Text style={styles.tituloCarrera}>📍 {miCarrera.nombre_carrera}</Text>
-          <Text style={styles.subtituloCarrera}>Estado: {miCarrera.estado}</Text>
+          
+          {/* ✨ MAGIA AQUÍ: Cartel rojo si está en curso */}
+          {miCarrera.estado === "en_curso" ? (
+            <View style={styles.enCursoContainer}>
+              <Text style={styles.textoEnCurso}>🔴 CORRIENDO AHORA</Text>
+            </View>
+          ) : (
+            <Text style={styles.subtituloCarrera}>Estado: {miCarrera.estado.toUpperCase()}</Text>
+          )}
 
           {miCarrera.hora ? (
             <Text style={{fontSize: 18, fontWeight: 'bold', color: '#c1121f', marginBottom: 5}}>
@@ -212,12 +215,20 @@ export default function HomeScreen() {
       {!miCarrera && estadoJugador !== "eliminado" && estadoJugador !== "ganador" && (
         <View style={styles.tarjetaSinCarrera}>
           <Text style={styles.textoSinCarrera}>
-            ⏳ Esperando que se genere la siguiente fase...
+            Esperando que se genere la siguiente fase...
           </Text>
         </View>
       )}
 
-      <View style={{ marginTop: 40, width: "100%" }}>
+      {/* BOTONES FINALES */}
+      <View style={{ marginTop: 20, width: "100%", marginBottom: 40 }}>
+        <View style={{ marginBottom: 15 }}>
+          <Button
+            title="Ver Cuadrante del Torneo 🏆"
+            onPress={() => navigation.navigate("TorneoPublicoScreen")}
+            color="#2a9d8f"
+          />
+        </View>
         <Button
           title="Cerrar Sesión"
           onPress={() => navigation.replace("Login")}
@@ -285,13 +296,32 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     color: "#003049",
-    marginBottom: 5,
+    marginBottom: 10,
   },
   subtituloCarrera: {
     fontSize: 14,
     color: "#666",
     marginBottom: 15,
+    fontWeight: "bold",
   },
+  // ✨ NUEVOS ESTILOS PARA "EN CURSO" ✨
+  enCursoContainer: {
+    backgroundColor: '#ffe5e5',
+    borderColor: '#e63946',
+    borderWidth: 2,
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 15,
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+  },
+  textoEnCurso: {
+    color: '#e63946',
+    fontWeight: 'bold',
+    fontSize: 14,
+    letterSpacing: 1,
+  },
+  // ------------------------------------
   participantesContainer: {
     marginTop: 10,
   },

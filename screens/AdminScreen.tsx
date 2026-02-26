@@ -4,10 +4,11 @@ import {
   ActivityIndicator,
   Alert,
   Button,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
-  View,
+  View
 } from "react-native";
 
 import {
@@ -43,33 +44,43 @@ export default function AdminScreen() {
     }
   };
 
-  const handleLimpiarBaseDeDatos = async () => {
-    // Alerta de confirmación para evitar accidentes
-    Alert.alert(
-      "⚠️ PELIGRO",
-      "¿Estás seguro de que quieres BORRAR TODOS los jugadores de la base de datos?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Sí, borrar todo",
-          style: "destructive",
-          onPress: async () => {
-            setCargando(true);
-            const exito = await limpiarJugadores();
-            setCargando(false);
+  // 1. Separamos la acción de borrar para no repetir código
+  const ejecutarLimpieza = async () => {
+    setCargando(true);
+    const exito = await limpiarJugadores();
+    setCargando(false);
 
-            if (exito) {
-              Alert.alert(
-                "Limpieza completada 🧹",
-                "Ya no hay jugadores inscritos.",
-              );
-            } else {
-              Alert.alert("Error", "No se pudo limpiar la base de datos.");
-            }
-          },
-        },
-      ],
-    );
+    if (exito) {
+      if (Platform.OS === "web") window.alert("Limpieza completada 🧹\nYa no hay jugadores inscritos.");
+      else Alert.alert("Limpieza completada 🧹", "Ya no hay jugadores inscritos.");
+    } else {
+      if (Platform.OS === "web") window.alert("Error\nNo se pudo limpiar la base de datos.");
+      else Alert.alert("Error", "No se pudo limpiar la base de datos.");
+    }
+  };
+
+  // 2. Aquí está la lógica que pregunta si estás seguro
+  const handleLimpiarBaseDeDatos = async () => {
+    const mensajePeligro = "¿Estás seguro de que quieres BORRAR TODOS los jugadores de la base de datos?";
+
+    // Si estamos en WEB (tu ordenador el día del evento)
+    if (Platform.OS === "web") {
+      const seguro = window.confirm("⚠️ PELIGRO\n" + mensajePeligro);
+      if (seguro) {
+        ejecutarLimpieza();
+      }
+    } 
+    // Si estamos en MÓVIL (iOS / Android)
+    else {
+      Alert.alert(
+        "⚠️ PELIGRO",
+        mensajePeligro,
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Sí, borrar todo", style: "destructive", onPress: ejecutarLimpieza },
+        ]
+      );
+    }
   };
 
   const handleGenerarClasificatorias = async () => {
