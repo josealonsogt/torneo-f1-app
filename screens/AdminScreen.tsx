@@ -1,55 +1,52 @@
 import { useNavigation } from "@react-navigation/native";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Button,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
+    ActivityIndicator,
+    Alert,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
+import {
+    generarPilotosPrueba,
+    limpiarCarreras,
+    limpiarJugadores
+} from "../services/adminService";
 
 import {
-  generarPilotosDePrueba,
-  limpiarJugadores
-} from "../services/adminService";
-import {
-  generarCarrerasClasificatorias,
-  generarFinal,
-  generarFinalB,
-  generarSemifinalesA,
-  generarSemifinalesB
+    abrirInscripciones,
+    generarFinal,
+    generarFinalB,
+    generarSemifinalesA,
+    generarSemifinalesB,
+    setEstadoInscripciones
 } from "../services/torneoService";
 
 export default function AdminScreen() {
   const navigation = useNavigation<any>();
-
-  // Estado para saber si la app está trabajando y bloquear los botones
   const [cargando, setCargando] = useState(false);
 
-  const handleGenerarPilotos = async () => {
+  // --- FUNCIONES DE LÓGICA (Mantenidas exactamente igual) ---
+  const handleGenerarPilotosPrueba = async () => {
     setCargando(true);
-    const exito = await generarPilotosDePrueba();
+    const exito = await generarPilotosPrueba();
     setCargando(false);
-
     if (exito) {
-      Alert.alert(
-        "Éxito 🚀",
-        "Se han inyectado 128 pilotos de prueba en la base de datos.",
-      );
+      if (Platform.OS === "web") window.alert("✅ 128 Bots Creados\nSe han registrado y asignado a sus carreras correctamente.");
+      else Alert.alert("✅ 128 Bots Creados", "Se han registrado y asignado a sus carreras correctamente.");
     } else {
-      Alert.alert("Error", "Hubo un problema al generar los pilotos.");
+      if (Platform.OS === "web") window.alert("Error\nNo se pudieron generar los pilotos.");
+      else Alert.alert("Error", "No se pudieron generar los pilotos.");
     }
   };
 
-  // 1. Separamos la acción de borrar para no repetir código
   const ejecutarLimpieza = async () => {
     setCargando(true);
     const exito = await limpiarJugadores();
     setCargando(false);
-
     if (exito) {
       if (Platform.OS === "web") window.alert("Limpieza completada 🧹\nYa no hay jugadores inscritos.");
       else Alert.alert("Limpieza completada 🧹", "Ya no hay jugadores inscritos.");
@@ -59,42 +56,75 @@ export default function AdminScreen() {
     }
   };
 
-  // 2. Aquí está la lógica que pregunta si estás seguro
   const handleLimpiarBaseDeDatos = async () => {
     const mensajePeligro = "¿Estás seguro de que quieres BORRAR TODOS los jugadores de la base de datos?";
-
-    // Si estamos en WEB (tu ordenador el día del evento)
     if (Platform.OS === "web") {
       const seguro = window.confirm("⚠️ PELIGRO\n" + mensajePeligro);
-      if (seguro) {
-        ejecutarLimpieza();
-      }
-    } 
-    // Si estamos en MÓVIL (iOS / Android)
-    else {
-      Alert.alert(
-        "⚠️ PELIGRO",
-        mensajePeligro,
-        [
-          { text: "Cancelar", style: "cancel" },
-          { text: "Sí, borrar todo", style: "destructive", onPress: ejecutarLimpieza },
-        ]
-      );
+      if (seguro) ejecutarLimpieza();
+    } else {
+      Alert.alert("⚠️ PELIGRO", mensajePeligro, [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Sí, borrar todo", style: "destructive", onPress: ejecutarLimpieza },
+      ]);
     }
   };
 
-  const handleGenerarClasificatorias = async () => {
+  const ejecutarLimpiezaCarreras = async () => {
     setCargando(true);
-    const exito = await generarCarrerasClasificatorias();
+    const exito = await limpiarCarreras();
     setCargando(false);
-
     if (exito) {
-      Alert.alert(
-        "¡Listo! 🏁",
-        "Se han generado 16 carreras clasificatorias. Los jugadores ya tienen asignada su carrera.",
-      );
+      if (Platform.OS === "web") window.alert("Carreras eliminadas 💥\nEl cuadrante está vacío.");
+      else Alert.alert("Carreras eliminadas 💥", "El cuadrante está vacío y listo para empezar.");
     } else {
-      Alert.alert("Error", "Hubo un problema al generar las clasificatorias.");
+      if (Platform.OS === "web") window.alert("Error al borrar las carreras.");
+      else Alert.alert("Error", "No se pudieron borrar las carreras.");
+    }
+  };
+
+  const handleLimpiarCarreras = async () => {
+    const mensajePeligro = "¿Seguro que quieres BORRAR TODAS LAS CARRERAS? Esto vaciará el cuadrante por completo.";
+    if (Platform.OS === "web") {
+      const seguro = window.confirm("☢️ BOTÓN NUCLEAR\n" + mensajePeligro);
+      if (seguro) ejecutarLimpiezaCarreras();
+    } else {
+      Alert.alert("☢️ BOTÓN NUCLEAR", mensajePeligro, [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Sí, destruir carreras", style: "destructive", onPress: ejecutarLimpiezaCarreras },
+      ]);
+    }
+  };
+
+  const handleAbrirInscripciones = async () => {
+    setCargando(true);
+    const exito = await abrirInscripciones();
+    setCargando(false);
+    if (exito) {
+      if (Platform.OS === "web") window.alert("¡Clasificatorias Creadas! 🏁\nSe han generado las 16 carreras vacías.");
+      else Alert.alert("¡Clasificatorias Creadas! 🏁", "Se han generado las 16 carreras vacías.");
+    } else {
+      if (Platform.OS === "web") window.alert("Error al crear las carreras.");
+      else Alert.alert("Error", "Fallo al crear las carreras.");
+    }
+  };
+
+  const handleCerrarPuerta = async () => {
+    setCargando(true);
+    const exito = await setEstadoInscripciones(false);
+    setCargando(false);
+    if (exito) {
+      if (Platform.OS === "web") window.alert("🔒 Puerta Cerrada\nNadie puede registrarse en este momento.");
+      else Alert.alert("🔒 Puerta Cerrada", "Nadie puede registrarse en este momento.");
+    }
+  };
+
+  const handleAbrirPuerta = async () => {
+    setCargando(true);
+    const exito = await setEstadoInscripciones(true);
+    setCargando(false);
+    if (exito) {
+      if (Platform.OS === "web") window.alert("🔓 Puerta Abierta\n¡Inscripciones abiertas! Ya pueden entrar a las carreras.");
+      else Alert.alert("🔓 Puerta Abierta", "¡Inscripciones abiertas! Ya pueden entrar a las carreras.");
     }
   };
 
@@ -102,11 +132,13 @@ export default function AdminScreen() {
     setCargando(true);
     const exito = await generarSemifinalesA();
     setCargando(false);
-
     if (exito) {
-      Alert.alert("¡Listo! 🏁", "Semifinales A generadas (1° de cada clasificatoria)");
+      if (Platform.OS === "web") window.alert("¡Listo! 🏁\nSemifinales A generadas (1° de cada clasificatoria)");
+      else Alert.alert("¡Listo! 🏁", "Semifinales A generadas (1° de cada clasificatoria)");
     } else {
-      Alert.alert("Error", "Verifica que las 16 clasificatorias estén finalizadas.");
+      const mensaje = "No se han podido generar.\n\nVerifica que:\n• Las 16 clasificatorias estén finalizadas\n• Haya pilotos con estado 'clasificado_semi_a'";
+      if (Platform.OS === "web") window.alert("❌ Error\n" + mensaje);
+      else Alert.alert("❌ Error", mensaje);
     }
   };
 
@@ -114,11 +146,13 @@ export default function AdminScreen() {
     setCargando(true);
     const exito = await generarSemifinalesB();
     setCargando(false);
-
     if (exito) {
-      Alert.alert("¡Listo! 🏁", "Semifinales B generadas (2° de cada clasificatoria)");
+      if (Platform.OS === "web") window.alert("¡Listo! 🏁\nSemifinales B generadas (2° de cada clasificatoria)");
+      else Alert.alert("¡Listo! 🏁", "Semifinales B generadas (2° de cada clasificatoria)");
     } else {
-      Alert.alert("Error", "Verifica que las 16 clasificatorias estén finalizadas.");
+      const mensaje = "No se han podido generar.\n\nVerifica que:\n• Las 16 clasificatorias estén finalizadas\n• Haya pilotos con estado 'clasificado_semi_b'";
+      if (Platform.OS === "web") window.alert("❌ Error\n" + mensaje);
+      else Alert.alert("❌ Error", mensaje);
     }
   };
 
@@ -126,11 +160,13 @@ export default function AdminScreen() {
     setCargando(true);
     const exito = await generarFinalB();
     setCargando(false);
-
     if (exito) {
-      Alert.alert("¡Listo! 🏁", "Final B generada (Top 4 de cada Semifinal B)");
+      if (Platform.OS === "web") window.alert("¡Listo! 🏁\nFinal B generada (Top 4 de cada Semifinal B)");
+      else Alert.alert("¡Listo! 🏁", "Final B generada (Top 4 de cada Semifinal B)");
     } else {
-      Alert.alert("Error", "Verifica que las 2 semifinales B estén finalizadas.");
+      const mensaje = "No se ha podido generar.\n\nVerifica que:\n• Las 2 Semifinales B estén finalizadas\n• Haya pilotos con estado 'clasificado_final_b'";
+      if (Platform.OS === "web") window.alert("❌ Error\n" + mensaje);
+      else Alert.alert("❌ Error", mensaje);
     }
   };
 
@@ -138,139 +174,134 @@ export default function AdminScreen() {
     setCargando(true);
     const exito = await generarFinal();
     setCargando(false);
-
     if (exito) {
-      Alert.alert("¡GRAN FINAL! 🏆", "¡La gran final ha sido generada!");
+      if (Platform.OS === "web") window.alert("¡GRAN FINAL! 🏆\n¡La gran final ha sido generada!");
+      else Alert.alert("¡GRAN FINAL! 🏆", "¡La gran final ha sido generada!");
     } else {
-      Alert.alert("Error", "Verifica que las semifinales A y Final B estén completas.");
+      const mensaje = "No se ha podido generar.\n\nVerifica que:\n• Las 2 Semifinales A estén finalizadas\n• La Final B esté finalizada\n• Haya suficientes finalistas";
+      if (Platform.OS === "web") window.alert("❌ Error\n" + mensaje);
+      else Alert.alert("❌ Error", mensaje);
     }
   };
 
+  // --- COMPONENTE DE BOTÓN PERSONALIZADO PARA UNIFICAR ESTILOS ---
+  const Boton = ({ titulo, color, onPress, textColor = "white" }: any) => (
+    <TouchableOpacity 
+      style={[styles.botonGeneral, { backgroundColor: color }, cargando && { opacity: 0.6 }]} 
+      onPress={onPress}
+      disabled={cargando}
+    >
+      <Text style={[styles.textoBoton, { color: textColor }]}>{titulo}</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.titulo}>⚙️ Centro de Mando</Text>
-      <Text style={styles.subtitulo}>Solo acceso para organización</Text>
+      
+      {/* CABECERA */}
+      <View style={styles.header}>
+        <Text style={styles.tituloHeader}>Centro de Mando</Text>
+        <Text style={styles.subtituloHeader}>Panel de Administración</Text>
+      </View>
 
-      {/* Si está cargando, mostramos la ruedita */}
+      {/* INDICADOR DE CARGA */}
       {cargando && (
-        <ActivityIndicator
-          size="large"
-          color="#c1121f"
-          style={{ marginBottom: 20 }}
-        />
+        <View style={styles.cargandoOverlay}>
+          <ActivityIndicator size="large" color="#003049" />
+          <Text style={styles.textoCargando}>Procesando...</Text>
+        </View>
       )}
 
-      <View style={styles.seccion}>
-        <Text style={styles.tituloSeccion}>1. Herramientas de Prueba</Text>
-        <Button
-          title="Generar 128 Pilotos Falsos"
-          color="#003049"
-          onPress={handleGenerarPilotos}
-          disabled={cargando}
-        />
-        <View style={{ height: 15 }} />
-        <Button
-          title="Borrar TODOS los Jugadores"
-          color="#c1121f"
-          onPress={handleLimpiarBaseDeDatos}
-          disabled={cargando}
-        />
-      </View>
-
-      <View style={styles.seccion}>
-        <Text style={styles.tituloSeccion}>2. Control del Torneo</Text>
-        <Button
-          title="Generar Clasificatorias (16 Carreras)"
-          color="#e63946"
-          onPress={handleGenerarClasificatorias}
-          disabled={cargando}
-        />
-        <View style={{ height: 15 }} />
-        <Button
-          title="Gestionar Carreras y Resultados"
-          color="#003049"
-          onPress={() => navigation.navigate("GestionCarrerasScreen")}
-          disabled={cargando}
-        />
-      </View>
-
-      
-        <View style={{ marginBottom: 30, backgroundColor: '#1e1e1e', padding: 15, borderRadius: 10, borderWidth: 1, borderColor: '#ffd700' }}>
-          <Text style={{ color: '#fff', textAlign: 'center', marginBottom: 10, fontWeight: 'bold' }}>🖥️ Control de Proyector</Text>
-          <Button 
-            title="ABRIR MODO PANTALLA GIGANTE" 
-            color="#e63946" 
-            onPress={() => navigation.navigate("PantallaGiganteScreen")} 
-          />
+      {/* 1. SECCIÓN DE INSCRIPCIONES Y PUERTAS */}
+      <View style={styles.tarjeta}>
+        <Text style={styles.tituloTarjeta}>1. Inscripciones y Clasificatorias</Text>
+        <Boton titulo="Generar 16 Clasificatorias Vacías" color="#0077b6" onPress={handleAbrirInscripciones} />
+        
+        <View style={styles.filaBotones}>
+          <View style={{ flex: 1, marginRight: 5 }}>
+            <Boton titulo="🔓 ABRIR PUERTA" color="#2a9d8f" onPress={handleAbrirPuerta} />
+          </View>
+          <View style={{ flex: 1, marginLeft: 5 }}>
+            <Boton titulo="🔒 CERRAR PUERTA" color="#495057" onPress={handleCerrarPuerta} />
+          </View>
         </View>
-
-      <View style={styles.seccion}>
-        <Text style={styles.tituloSeccion}>3. Avanzar de Fase</Text>
-        <Button
-          title="Generar Semifinales A (1° clasificatorias)"
-          color="#2a9d8f"
-          onPress={handleGenerarSemifinalesA}
-          disabled={cargando}
-        />
-        <View style={{ height: 10 }} />
-        <Button
-          title="Generar Semifinales B (2° clasificatorias)"
-          color="#2a9d8f"
-          onPress={handleGenerarSemifinalesB}
-          disabled={cargando}
-        />
-        <View style={{ height: 10 }} />
-        <Button
-          title="Generar Final B (Top 4 Semi B)"
-          color="#f4a261"
-          onPress={handleGenerarFinalB}
-          disabled={cargando}
-        />
-        <View style={{ height: 10 }} />
-        <Button
-          title="Generar GRAN FINAL"
-          color="#e76f51"
-          onPress={handleGenerarFinal}
-          disabled={cargando}
-        />
       </View>
 
-      <Button
-        title="Cerrar Sesión Admin"
-        color="#666"
-        onPress={() => navigation.replace("Login")}
-      />
+      {/* 2. SECCIÓN DE GESTIÓN (LO MÁS USADO) */}
+      <View style={styles.tarjeta}>
+        <Text style={styles.tituloTarjeta}>2. Gestión del Torneo</Text>
+        <Boton titulo="📝 Gestionar Carreras y Resultados" color="#003049" onPress={() => navigation.navigate("GestionCarrerasScreen")} />
+        <Boton titulo="👥 Lista y Control de Pilotos" color="#003049" onPress={() => navigation.navigate("GestionPilotosScreen")} />
+        
+        <View style={styles.separador} />
+        
+        <TouchableOpacity 
+          style={styles.botonProyector} 
+          onPress={() => navigation.navigate("PantallaGrandeDesktopScreen")}
+          disabled={cargando}
+        >
+          <Text style={styles.textoBotonProyector}>🖥️ ABRIR PANTALLA GIGANTE</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 3. SECCIÓN AVANZAR DE FASE */}
+      <View style={styles.tarjeta}>
+        <Text style={styles.tituloTarjeta}>3. Avanzar de Fase</Text>
+        <Boton titulo="Generar Semifinales A (Ganadores)" color="#00b4d8" onPress={handleGenerarSemifinalesA} />
+        <Boton titulo="Generar Semifinales B (Segundos)" color="#00b4d8" onPress={handleGenerarSemifinalesB} />
+        <Boton titulo="Generar Final B (Repesca)" color="#f4a261" onPress={handleGenerarFinalB} />
+        <Boton titulo="Generar GRAN FINAL 🏆" color="#e76f51" onPress={handleGenerarFinal} />
+      </View>
+
+      {/* 4. SECCIÓN HERRAMIENTAS DE PRUEBA Y RESET (AL FINAL PARA NO DARLE SIN QUERER) */}
+      <View style={styles.tarjetaPeligro}>
+        <Text style={styles.tituloTarjetaPeligro}>⚙️ Herramientas y Reset</Text>
+        <Boton titulo="Simular 128 Pilotos (Bots)" color="#6c757d" onPress={handleGenerarPilotosPrueba} />
+        
+        <View style={styles.filaBotones}>
+          <View style={{ flex: 1, marginRight: 5 }}>
+            <Boton titulo="Borrar JUGADORES" color="#e63946" onPress={handleLimpiarBaseDeDatos} />
+          </View>
+          <View style={{ flex: 1, marginLeft: 5 }}>
+            <Boton titulo="Borrar CARRERAS" color="#d00000" onPress={handleLimpiarCarreras} />
+          </View>
+        </View>
+      </View>
+
+      {/* BOTÓN SALIR */}
+      <View style={{ paddingBottom: 40, alignItems: 'center' }}>
+        <TouchableOpacity onPress={() => navigation.replace("Login")} style={{ padding: 15 }}>
+          <Text style={{ color: '#888', fontWeight: 'bold' }}>Cerrar Sesión Admin</Text>
+        </TouchableOpacity>
+      </View>
+
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 20, backgroundColor: "#fdf0d5" },
-  titulo: {
-    fontSize: 28,
-    fontWeight: "bold",
-    textAlign: "center",
-    color: "#003049",
-    marginBottom: 5,
-  },
-  subtitulo: {
-    fontSize: 14,
-    textAlign: "center",
-    color: "#666",
-    marginBottom: 30,
-  },
-  seccion: {
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 10,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#ccc",
-  },
-  tituloSeccion: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 15,
-    color: "#003049",
-  },
+  container: { flexGrow: 1, backgroundColor: "#f5f6fa", padding: 15 },
+  
+  header: { alignItems: "center", marginBottom: 20, marginTop: 10 },
+  tituloHeader: { fontSize: 28, fontWeight: "bold", color: "#003049" },
+  subtituloHeader: { fontSize: 14, color: "#666" },
+  
+  cargandoOverlay: { backgroundColor: "rgba(255,255,255,0.8)", padding: 15, borderRadius: 10, alignItems: "center", marginBottom: 15 },
+  textoCargando: { marginTop: 10, fontWeight: "bold", color: "#003049" },
+
+  tarjeta: { backgroundColor: "#fff", padding: 20, borderRadius: 12, marginBottom: 15, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  tarjetaPeligro: { backgroundColor: "#fff0f0", padding: 20, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: "#ffcccc" },
+  
+  tituloTarjeta: { fontSize: 16, fontWeight: "bold", color: "#333", marginBottom: 15, borderBottomWidth: 1, borderBottomColor: "#eee", paddingBottom: 5 },
+  tituloTarjetaPeligro: { fontSize: 16, fontWeight: "bold", color: "#d00000", marginBottom: 15, borderBottomWidth: 1, borderBottomColor: "#ffcccc", paddingBottom: 5 },
+  
+  botonGeneral: { paddingVertical: 14, borderRadius: 8, alignItems: "center", marginBottom: 10 },
+  textoBoton: { fontSize: 15, fontWeight: "bold", letterSpacing: 0.5 },
+  
+  filaBotones: { flexDirection: "row", justifyContent: "space-between", marginTop: 5 },
+  
+  separador: { height: 1, backgroundColor: "#eee", marginVertical: 15 },
+  
+  botonProyector: { backgroundColor: "#ffb703", paddingVertical: 15, borderRadius: 8, alignItems: "center", borderWidth: 1, borderColor: "#e5a300" },
+  textoBotonProyector: { fontSize: 15, fontWeight: "bold", color: "#000", letterSpacing: 0.5 },
 });

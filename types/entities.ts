@@ -54,8 +54,7 @@ export interface ConfiguracionTorneo {
 
 export type FaseTorneo =
   | "inscripcion"
-  | "clasificatorias"
-  | "semifinales_a"
-  | "semifinales_b"
+  | "clasificatoria"      // Cambiado de "clasificatorias" para coincidir con fase de carreras
+  | "semifinales"         // Unificado: semifinales A y B coexisten en esta fase
   | "final_b"
   | "final";

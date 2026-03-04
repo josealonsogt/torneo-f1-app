@@ -1,68 +1,57 @@
-import { collection, doc, getDocs, updateDoc, writeBatch } from "firebase/firestore";
+import { collection, doc, getDocs, query, setDoc, where, writeBatch } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 
-// GENERA LAS 16 CARRERAS CLASIFICATORIAS
-export const generarCarrerasClasificatorias = async (): Promise<boolean> => {
+// ============================================================================
+// 1. CONFIGURACIÓN INICIAL Y CANDADOS
+// ============================================================================
+
+export const abrirInscripciones = async (): Promise<boolean> => {
   try {
-    const jugadoresRef = collection(db, "jugadores");
-    const snapshot = await getDocs(jugadoresRef);
-
-    let jugadores: any[] = [];
-    snapshot.forEach((documento) => {
-      jugadores.push({ id_jugador: documento.id, ...documento.data() });
-    });
-
-    if (jugadores.length === 0) return false;
-
-    // Barajar aleatoriamente
-    for (let i = jugadores.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [jugadores[i], jugadores[j]] = [jugadores[j], jugadores[i]];
-    }
-
-    const batch = writeBatch(db);
     const carrerasRef = collection(db, "carreras");
-    let numeroCarrera = 1;
+    const qAll = query(carrerasRef);
+    const snapshot = await getDocs(qAll);
+    const batchBorrado = writeBatch(db);
+    snapshot.forEach(docSnap => batchBorrado.delete(docSnap.ref));
+    await batchBorrado.commit();
 
-    for (let i = 0; i < jugadores.length; i += 8) {
-      const grupo = jugadores.slice(i, i + 8);
-      const participantes = grupo.map((jugador) => ({
-        jugador_id: jugador.id_jugador,
-        nombre: jugador.nombre,
-        posicion: 0
-      }));
-
-      const nuevaCarreraRef = doc(carrerasRef);
-      batch.set(nuevaCarreraRef, {
-        nombre_carrera: `Clasificatoria ${numeroCarrera}`,
+    const batchCreacion = writeBatch(db);
+    for (let i = 1; i <= 16; i++) {
+      const nuevaCarrera = doc(carrerasRef);
+      batchCreacion.set(nuevaCarrera, {
+        numero: i,
         fase: "clasificatoria",
-        numero: numeroCarrera,
+        nombre_carrera: `Clasificatoria ${i}`,
         estado: "pendiente",
-        participantes: participantes
+        participantes: [] 
       });
-      numeroCarrera++;
     }
+    await batchCreacion.commit();
 
-    await batch.commit();
-    
-    // Actualizar la fase del torneo
-    const torneoRef = doc(db, "configuracion", "torneo");
-    const batchConfig = writeBatch(db);
-    batchConfig.set(torneoRef, {
-      fase_actual: "clasificatorias",
-      carreras_generadas: true,
-      carrera_en_curso: null
-    });
-    await batchConfig.commit();
-    
+    const configRef = doc(db, "configuracion", "torneo");
+    await setDoc(configRef, { fase_actual: "clasificatoria" }, { merge: true });
+
     return true;
   } catch (error) {
-    console.error(error);
+    console.error("Error al abrir inscripciones:", error);
     return false;
   }
 };
 
-// OBTENER LA CARRERA DE UN JUGADOR
+export const setEstadoInscripciones = async (abiertas: boolean): Promise<boolean> => {
+  try {
+    const configRef = doc(db, "configuracion", "torneo");
+    await setDoc(configRef, { inscripciones_abiertas: abiertas }, { merge: true });
+    return true;
+  } catch (error) {
+    console.error("Error cambiando el candado:", error);
+    return false;
+  }
+};
+
+// ============================================================================
+// 2. UTILIDADES
+// ============================================================================
+
 export const obtenerCarreraDeJugador = async (jugadorId: string): Promise<any | null> => {
   try {
     const carrerasRef = collection(db, "carreras");
@@ -73,270 +62,184 @@ export const obtenerCarreraDeJugador = async (jugadorId: string): Promise<any | 
       const participante = carrera.participantes?.find(
         (p: any) => p.jugador_id === jugadorId
       );
-      
       if (participante) {
-        return {
-          id: documento.id,
-          ...carrera,
-          mi_posicion: participante.posicion
-        };
+        return { id: documento.id, ...carrera, mi_posicion: participante.posicion };
       }
     }
-    
     return null;
   } catch (error) {
-    console.error(error);
+    console.error("Error obteniendo la carrera:", error);
     return null;
   }
 };
 
-// GENERAR SEMIFINALES A (con los 1° de clasificatorias)
+// ============================================================================
+// 3. GENERADORES ELÁSTICOS (EL MOTOR DEFINITIVO)
+// ============================================================================
+
 export const generarSemifinalesA = async (): Promise<boolean> => {
   try {
-    const carrerasRef = collection(db, "carreras");
-    const snapshot = await getDocs(carrerasRef);
-    
-    // Filtrar solo clasificatorias finalizadas
-    const clasificatorias = snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() as any }))
-      .filter(c => c.fase === "clasificatoria" && c.estado === "finalizada");
-    
-    if (clasificatorias.length !== 16) {
-      return false; // Deben estar las 16 clasificatorias finalizadas
+    // 🔥 MAGIA ELÁSTICA: Nos da igual cuántas carreras se jugaron. 
+    // Solo buscamos quién tiene el billete para la Semi A.
+    const q = query(collection(db, "jugadores"), where("estado_torneo", "==", "clasificado_semi_a"));
+    const snapshot = await getDocs(q);
+    const clasificados = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+
+    if (clasificados.length === 0) {
+      console.warn("No hay ganadores para montar las Semis A.");
+      return false;
     }
-    
-    // Obtener los primeros de cada clasificatoria
-    const primeros: any[] = [];
-    clasificatorias.forEach(carrera => {
-      const primero = carrera.participantes.find((p: any) => p.posicion === 1);
-      if (primero) primeros.push(primero);
-    });
-    
-    if (primeros.length !== 16) return false;
-    
-    // Barajar
-    for (let i = primeros.length - 1; i > 0; i--) {
+
+    // Barajamos para dar emoción
+    for (let i = clasificados.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [primeros[i], primeros[j]] = [primeros[j], primeros[i]];
+      [clasificados[i], clasificados[j]] = [clasificados[j], clasificados[i]];
     }
-    
-    // Crear 2 semifinales de 8 jugadores cada una
+
+    // Partimos a los ganadores por la mitad, sean 16, 8 o 5.
+    const mitad = Math.ceil(clasificados.length / 2);
+    const semi1 = clasificados.slice(0, mitad);
+    const semi2 = clasificados.slice(mitad);
+
     const batch = writeBatch(db);
-    
-    for (let i = 0; i < 2; i++) {
-      const grupo = primeros.slice(i * 8, (i + 1) * 8);
-      const participantes = grupo.map(j => ({
-        jugador_id: j.jugador_id,
-        nombre: j.nombre,
-        posicion: 0
-      }));
-      
-      const nuevaCarreraRef = doc(carrerasRef);
-      batch.set(nuevaCarreraRef, {
-        nombre_carrera: `Semifinal A${i + 1}`,
-        fase: "semifinal_a",
-        numero: i + 1,
-        estado: "pendiente",
-        participantes
-      });
-    }
+
+    batch.set(doc(collection(db, "carreras")), {
+      nombre_carrera: "Semi A 1",
+      fase: "semifinal_a",
+      estado: "pendiente",
+      numero: 101,
+      participantes: semi1.map(p => ({ jugador_id: p.id, nombre: p.nombre, posicion: 0 }))
+    });
+
+    batch.set(doc(collection(db, "carreras")), {
+      nombre_carrera: "Semi A 2",
+      fase: "semifinal_a",
+      estado: "pendiente",
+      numero: 102,
+      participantes: semi2.map(p => ({ jugador_id: p.id, nombre: p.nombre, posicion: 0 }))
+    });
+
+    const configRef = doc(db, "configuracion", "torneo");
+    batch.update(configRef, { fase_actual: "semifinales" });
     
     await batch.commit();
-    
-    // Actualizar fase del torneo
-    const torneoRef = doc(db, "configuracion", "torneo");
-    await updateDoc(torneoRef, { fase_actual: "semifinales_a" });
-    
     return true;
   } catch (error) {
-    console.error(error);
+    console.error("Error generando Semifinales A:", error);
     return false;
   }
 };
 
-// GENERAR SEMIFINALES B (con los 2° de clasificatorias)
 export const generarSemifinalesB = async (): Promise<boolean> => {
   try {
-    const carrerasRef = collection(db, "carreras");
-    const snapshot = await getDocs(carrerasRef);
-    
-    const clasificatorias = snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() as any }))
-      .filter(c => c.fase === "clasificatoria" && c.estado === "finalizada");
-    
-    if (clasificatorias.length !== 16) return false;
-    
-    // Obtener los segundos
-    const segundos: any[] = [];
-    clasificatorias.forEach(carrera => {
-      const segundo = carrera.participantes.find((p: any) => p.posicion === 2);
-      if (segundo) segundos.push(segundo);
-    });
-    
-    if (segundos.length !== 16) return false;
-    
-    // Barajar
-    for (let i = segundos.length - 1; i > 0; i--) {
+    const q = query(collection(db, "jugadores"), where("estado_torneo", "==", "clasificado_semi_b"));
+    const snapshot = await getDocs(q);
+    const clasificados = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+
+    if (clasificados.length === 0) return false;
+
+    for (let i = clasificados.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [segundos[i], segundos[j]] = [segundos[j], segundos[i]];
+      [clasificados[i], clasificados[j]] = [clasificados[j], clasificados[i]];
     }
-    
-    // Crear 2 semifinales B
+
+    const mitad = Math.ceil(clasificados.length / 2);
+    const semi1 = clasificados.slice(0, mitad);
+    const semi2 = clasificados.slice(mitad);
+
     const batch = writeBatch(db);
-    
-    for (let i = 0; i < 2; i++) {
-      const grupo = segundos.slice(i * 8, (i + 1) * 8);
-      const participantes = grupo.map(j => ({
-        jugador_id: j.jugador_id,
-        nombre: j.nombre,
-        posicion: 0
-      }));
-      
-      const nuevaCarreraRef = doc(carrerasRef);
-      batch.set(nuevaCarreraRef, {
-        nombre_carrera: `Semifinal B${i + 1}`,
-        fase: "semifinal_b",
-        numero: i + 1,
-        estado: "pendiente",
-        participantes
-      });
-    }
+
+    batch.set(doc(collection(db, "carreras")), {
+      nombre_carrera: "Semi B 1",
+      fase: "semifinal_b",
+      estado: "pendiente",
+      numero: 201,
+      participantes: semi1.map(p => ({ jugador_id: p.id, nombre: p.nombre, posicion: 0 }))
+    });
+
+    batch.set(doc(collection(db, "carreras")), {
+      nombre_carrera: "Semi B 2",
+      fase: "semifinal_b",
+      estado: "pendiente",
+      numero: 202,
+      participantes: semi2.map(p => ({ jugador_id: p.id, nombre: p.nombre, posicion: 0 }))
+    });
+
+    const configRef = doc(db, "configuracion", "torneo");
+    batch.update(configRef, { fase_actual: "semifinales" });
     
     await batch.commit();
-    
-    const torneoRef = doc(db, "configuracion", "torneo");
-    await updateDoc(torneoRef, { fase_actual: "semifinales_b" });
-    
     return true;
   } catch (error) {
-    console.error(error);
+    console.error("Error generando Semifinales B:", error);
     return false;
   }
 };
 
-// GENERAR FINAL B (top 4 de cada semifinal B)
 export const generarFinalB = async (): Promise<boolean> => {
   try {
-    const carrerasRef = collection(db, "carreras");
-    const snapshot = await getDocs(carrerasRef);
-    
-    const semiB = snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() as any }))
-      .filter(c => c.fase === "semifinal_b" && c.estado === "finalizada");
-    
-    if (semiB.length !== 2) return false;
-    
-    // Top 4 de cada semifinal B
-    const clasificados: any[] = [];
-    semiB.forEach(carrera => {
-      for (let pos = 1; pos <= 4; pos++) {
-        const piloto = carrera.participantes.find((p: any) => p.posicion === pos);
-        if (piloto) clasificados.push(piloto);
-      }
-    });
-    
-    if (clasificados.length !== 8) return false;
-    
-    // Barajar
+    const q = query(collection(db, "jugadores"), where("estado_torneo", "==", "clasificado_final_b"));
+    const snapshot = await getDocs(q);
+    const clasificados = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+
+    if (clasificados.length === 0) return false;
+
     for (let i = clasificados.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [clasificados[i], clasificados[j]] = [clasificados[j], clasificados[i]];
     }
-    
+
     const batch = writeBatch(db);
-    const nuevaCarreraRef = doc(carrerasRef);
-    
-    const participantes = clasificados.map(j => ({
-      jugador_id: j.jugador_id,
-      nombre: j.nombre,
-      posicion: 0
-    }));
-    
-    batch.set(nuevaCarreraRef, {
+
+    batch.set(doc(collection(db, "carreras")), {
       nombre_carrera: "Final B",
       fase: "final_b",
-      numero: 1,
       estado: "pendiente",
-      participantes
+      numero: 301,
+      participantes: clasificados.map(p => ({ jugador_id: p.id, nombre: p.nombre, posicion: 0 }))
     });
+
+    const configRef = doc(db, "configuracion", "torneo");
+    batch.update(configRef, { fase_actual: "final_b" });
     
     await batch.commit();
-    
-    const torneoRef = doc(db, "configuracion", "torneo");
-    await updateDoc(torneoRef, { fase_actual: "final_b" });
-    
     return true;
   } catch (error) {
-    console.error(error);
+    console.error("Error generando Final B:", error);
     return false;
   }
 };
 
-// GENERAR FINAL (top 3 de cada semi A + top 2 de final B)
 export const generarFinal = async (): Promise<boolean> => {
   try {
-    const carrerasRef = collection(db, "carreras");
-    const snapshot = await getDocs(carrerasRef);
-    
-    const semiA = snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() as any }))
-      .filter(c => c.fase === "semifinal_a" && c.estado === "finalizada");
-    
-    const finalB = snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() as any }))
-      .filter(c => c.fase === "final_b" && c.estado === "finalizada");
-    
-    if (semiA.length !== 2 || finalB.length !== 1) return false;
-    
-    const clasificados: any[] = [];
-    
-    // Top 3 de cada semifinal A
-    semiA.forEach(carrera => {
-      for (let pos = 1; pos <= 3; pos++) {
-        const piloto = carrera.participantes.find((p: any) => p.posicion === pos);
-        if (piloto) clasificados.push(piloto);
-      }
-    });
-    
-    // Top 2 de final B
-    for (let pos = 1; pos <= 2; pos++) {
-      const piloto = finalB[0].participantes.find((p: any) => p.posicion === pos);
-      if (piloto) clasificados.push(piloto);
-    }
-    
-    if (clasificados.length !== 8) return false;
-    
-    // Barajar
+    const q = query(collection(db, "jugadores"), where("estado_torneo", "==", "finalista"));
+    const snapshot = await getDocs(q);
+    const clasificados = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+
+    if (clasificados.length === 0) return false;
+
     for (let i = clasificados.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [clasificados[i], clasificados[j]] = [clasificados[j], clasificados[i]];
     }
-    
+
     const batch = writeBatch(db);
-    const nuevaCarreraRef = doc(carrerasRef);
-    
-    const participantes = clasificados.map(j => ({
-      jugador_id: j.jugador_id,
-      nombre: j.nombre,
-      posicion: 0
-    }));
-    
-    batch.set(nuevaCarreraRef, {
+
+    batch.set(doc(collection(db, "carreras")), {
       nombre_carrera: "GRAN FINAL",
       fase: "final",
-      numero: 1,
       estado: "pendiente",
-      participantes
+      numero: 401,
+      participantes: clasificados.map(p => ({ jugador_id: p.id, nombre: p.nombre, posicion: 0 }))
     });
+
+    const configRef = doc(db, "configuracion", "torneo");
+    batch.update(configRef, { fase_actual: "final" });
     
     await batch.commit();
-    
-    const torneoRef = doc(db, "configuracion", "torneo");
-    await updateDoc(torneoRef, { fase_actual: "final" });
-    
     return true;
   } catch (error) {
-    console.error(error);
+    console.error("Error generando Gran Final:", error);
     return false;
   }
 };
