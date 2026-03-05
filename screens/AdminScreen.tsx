@@ -232,6 +232,11 @@ export default function AdminScreen() {
         <Text style={styles.tituloTarjeta}>2. Gestión del Torneo</Text>
         <Boton titulo="📝 Gestionar Carreras y Resultados" color="#003049" onPress={() => navigation.navigate("GestionCarrerasScreen")} />
         <Boton titulo="👥 Lista y Control de Pilotos" color="#003049" onPress={() => navigation.navigate("GestionPilotosScreen")} />
+        <Boton 
+          titulo="🔄 Mover Pilotos de Carrera" 
+          color="#0077b6" 
+          onPress={() => navigation.navigate("MoverPilotosScreen")} 
+        />
         
         <View style={styles.separador} />
         
@@ -242,13 +247,7 @@ export default function AdminScreen() {
         >
           <Text style={styles.textoBotonProyector}>🖥️ ABRIR PANTALLA GIGANTE</Text>
         </TouchableOpacity>
-      </View> 
-      <Boton 
-            titulo="🔄 Mover Pilotos de Carrera" 
-            color="#0077b6" 
-            onPress={() => navigation.navigate("MoverPilotosScreen")} 
-          />
-      
+      </View>
 
       {/* 3. SECCIÓN AVANZAR DE FASE */}
       <View style={styles.tarjeta}>
