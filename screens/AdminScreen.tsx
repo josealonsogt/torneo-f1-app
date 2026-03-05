@@ -1,28 +1,28 @@
 import { useNavigation } from "@react-navigation/native";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 import {
-    generarPilotosPrueba,
-    limpiarCarreras,
-    limpiarJugadores
+  generarPilotosPrueba,
+  limpiarCarreras,
+  limpiarJugadores
 } from "../services/adminService";
 
 import {
-    abrirInscripciones,
-    generarFinal,
-    generarFinalB,
-    generarSemifinalesA,
-    generarSemifinalesB,
-    setEstadoInscripciones
+  abrirInscripciones,
+  generarFinal,
+  generarFinalB,
+  generarSemifinalesA,
+  generarSemifinalesB,
+  setEstadoInscripciones
 } from "../services/torneoService";
 
 export default function AdminScreen() {
@@ -242,7 +242,13 @@ export default function AdminScreen() {
         >
           <Text style={styles.textoBotonProyector}>🖥️ ABRIR PANTALLA GIGANTE</Text>
         </TouchableOpacity>
-      </View>
+      </View> 
+      <Boton 
+            titulo="🔄 Mover Pilotos de Carrera" 
+            color="#0077b6" 
+            onPress={() => navigation.navigate("MoverPilotosScreen")} 
+          />
+      
 
       {/* 3. SECCIÓN AVANZAR DE FASE */}
       <View style={styles.tarjeta}>
