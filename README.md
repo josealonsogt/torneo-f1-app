@@ -1,105 +1,65 @@
-# 🏁 Matsuri Racing - Sistema de Gestión de Torneos
+# 🏁 Matsuri Racing - Kaizō Sim
 
-Sistema completo de gestión de torneos de carreras con sistema de "Embudo Elástico" para competiciones con número variable de participantes.
+![Estado](https://img.shields.io/badge/Estado-En_Producción-success?style=for-the-badge)
+![Open Source](https://img.shields.io/badge/Open_Source-Sí-blue?style=for-the-badge)
 
-## 🎯 Características
+**Matsuri Racing** es una plataforma completa de gestión de torneos de **SimRacing** desarrollada para **Kaizō Sim**.  
+Permite controlar todo el flujo de un evento: desde la inscripción de pilotos hasta la generación automática de la **Gran Final**, incluyendo un *Live Timing* público y avisos por **WhatsApp**.
 
-- ✅ **Sistema Elástico**: Se adapta automáticamente de 20 a 128 participantes
-- 🏆 **Fases del Torneo**: Clasificatorias → Semifinales A/B → Final B → Gran Final
-- 📱 **Panel de Administración**: Gestión completa de carreras, jugadores y progresión
-- 🔴 **Vista en Vivo**: Bracket visual en tiempo real para proyectar
-- 👥 **Panel de Jugador**: Vista personalizada con estado y próxima carrera
-- 🔥 **Actualización en Tiempo Real**: Firebase Firestore con listeners
+👉 **[PROBAR LA APP EN VIVO AQUÍ](https://torneo-matsuri.vercel.app)** 👈
 
-## 🛠️ Tecnologías
+---
 
-- **Frontend**: React Native + Expo
-- **Backend**: Firebase Firestore
-- **Navegación**: React Navigation
-- **Lenguaje**: TypeScript
+# 🏎️ ¿Qué hace la aplicación?
 
-## 📦 Instalación
+La app está dividida en **3 grandes bloques** para que el torneo fluya sin interrupciones:
 
-```bash
-# Clonar repositorio
-git clone https://github.com/TU_USUARIO/torneo-app.git
-cd torneo-app
+## 👑 Centro de Mando (Admin)
 
-# Instalar dependencias
-npm install
+Panel de control para los organizadores del torneo.
 
-# Iniciar en modo desarrollo
-npx expo start
-```
+- Creación automática de las **16 clasificatorias**
+- Generación **elástica** de Semifinales y Finales (avanzan los ganadores)
+- Asignación de **posiciones y tiempos**
+- Botón de **aviso rápido a los pilotos por WhatsApp**
 
-## ⚙️ Configuración Firebase
+---
 
-1. Crea un proyecto en [Firebase Console](https://console.firebase.google.com/)
-2. Copia las credenciales en `services/firebaseConfig.js`
-3. Configura las reglas de Firestore (ver abajo)
+## 🚦 Tu Box (Pilotos)
 
-### Reglas de Seguridad Firestore
+Cada piloto tiene su propio espacio dentro de la plataforma.
 
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /jugadores/{jugadorId} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-    
-    match /carreras/{carreraId} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-    
-    match /configuracion/{doc} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-  }
-}
-```
+- Perfil personal de piloto (**Box**)
+- Estado en tiempo real dentro del torneo:
+  - En Lista de Espera
+  - Clasificado
+  - Eliminado
+- Historial completo de **todas las carreras disputadas**
 
-## 🎮 Uso
+---
 
-### Admin (Contraseña: admin123)
-1. Login como admin
-2. Abrir inscripciones
-3. Generar jugadores bot o esperar registros
-4. Gestionar carreras y avanzar fases
+## 📺 Live Timing & Pantalla Gigante
 
-### Jugador
-1. Registrarse con nombre
-2. Ver estado del torneo en tiempo real
-3. Consultar bracket completo
+Vista pública pensada para espectadores y eventos presenciales.
 
-## 📱 Builds
+- Seguimiento **en directo del torneo**
+- Vista **Bracket / Cuadrante**
+- Ideal para **pantallas grandes en eventos**
 
-```bash
-# Build para Web
-npx expo build:web
+---
 
-# Build para Android (requiere EAS)
-eas build --platform android
+# 🛠️ Tecnologías Principales
 
-# Build para iOS (requiere Mac + Apple Dev Account)
-eas build --platform ios
-```
+- **Frontend:** React Native + Expo (Web, iOS y Android)
+- **Backend:** Firebase
+- **Base de datos:** Firestore (tiempo real)
+- **Diseño:** Brutalismo UI, alto contraste y tipografía agresiva
 
-## 🔐 Seguridad
+---
 
-⚠️ **IMPORTANTE ANTES DE PRODUCCIÓN**:
-- [ ] Mover credenciales Firebase a variables de entorno
-- [ ] Implementar Firebase Authentication real
-- [ ] Configurar reglas de seguridad Firestore
-- [ ] Cambiar contraseña de admin hardcoded
+# 🚀 Cómo probarlo en tu ordenador
 
-## 📄 Licencia
+Este proyecto es **100% Open Source**.  
+Si quieres descargarlo, probarlo o adaptarlo para tu propio torneo:
 
-MIT License - Desarrollado por [Tu Nombre]
 
-## 🤝 Contribuciones
-
-Pull requests son bienvenidos. Para cambios mayores, abre un issue primero.
