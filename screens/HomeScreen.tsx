@@ -2,7 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { collection, doc, onSnapshot } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { db } from "../services/firebaseConfig";
 import { EstadoJugador } from "../types/entities";
 
@@ -226,6 +226,15 @@ export default function HomeScreen() {
             <Text style={styles.textoBotonPrincipal}>VER CUADRANTE EN VIVO</Text>
           </View>
         </TouchableOpacity>
+
+        {/* 👇 BOTÓN SUTIL DE WHATSAPP 👇 */}
+        <TouchableOpacity 
+          style={styles.botonSutilWhatsapp} 
+          onPress={() => Linking.openURL("https://chat.whatsapp.com/PON_AQUI_TU_ENLACE")}
+        >
+          <MaterialCommunityIcons name="whatsapp" size={18} color="#25D366" />
+          <Text style={styles.textoSutilWhatsapp}>¿No estás en el grupo? Únete al chat de pilotos</Text>
+        </TouchableOpacity>
         
         <TouchableOpacity style={styles.botonSecundario} onPress={() => navigation.replace("Login")}>
           <Text style={styles.textoBotonSecundario}>Cerrar Sesión</Text>
@@ -271,8 +280,13 @@ const styles = StyleSheet.create({
   contenedorBotones: { width: "100%", marginTop: 15, marginBottom: 40 },
   botonBracket: { backgroundColor: "#1a1a1a", paddingVertical: 18, borderRadius: 8, alignItems: "center", marginBottom: 15, borderWidth: 2, borderColor: "#ffd700", shadowColor: "#ffd700", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 6, elevation: 6 },
   textoBotonBracket: { color: "#ffd700", fontSize: 16, fontWeight: "bold", letterSpacing: 1 },
-  botonPrincipal: { backgroundColor: "#2a9d8f", paddingVertical: 15, borderRadius: 8, alignItems: "center", marginBottom: 15, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 },
+  botonPrincipal: { backgroundColor: "#2a9d8f", paddingVertical: 15, borderRadius: 8, alignItems: "center", marginBottom: 25, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 },
   textoBotonPrincipal: { color: "#fff", fontSize: 16, fontWeight: "bold", letterSpacing: 1 },
+  
+  // Estilos del botón sutil de WhatsApp
+  botonSutilWhatsapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 25 },
+  textoSutilWhatsapp: { color: '#888', fontSize: 13, textDecorationLine: 'underline' },
+
   botonSecundario: { backgroundColor: "#1e1e1e", paddingVertical: 15, borderRadius: 8, alignItems: "center", borderWidth: 1, borderColor: "#444" },
   textoBotonSecundario: { color: "#888", fontSize: 16, fontWeight: "bold" }
 });

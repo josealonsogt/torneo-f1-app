@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from "@react-navigation/native";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { accederTorneo } from "../services/authService";
 
 export default function LoginScreen() {
@@ -56,7 +56,7 @@ export default function LoginScreen() {
       style={styles.container} 
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={styles.card}>
+      <ScrollView contentContainerStyle={styles.card} showsVerticalScrollIndicator={false}>
         
         {/* LOGO / TÍTULO */}
         <View style={styles.header}>
@@ -99,7 +99,7 @@ export default function LoginScreen() {
           />
         </View>
 
-        {/* BOTÓN ENTRAR */}
+        {/* BOTÓN ENTRAR (ROJO) */}
         <TouchableOpacity 
           style={[styles.boton, cargando && styles.botonDesactivado]} 
           onPress={manejarAcceso}
@@ -114,12 +114,28 @@ export default function LoginScreen() {
             </View>
           )}
         </TouchableOpacity>
+
+        {/* BOTÓN WHATSAPP (VERDE) */}
+        <TouchableOpacity 
+          style={styles.botonWhatsapp}
+          onPress={() => Linking.openURL("https://chat.whatsapp.com/PON_AQUI_TU_ENLACE")} 
+        >
+          <MaterialCommunityIcons name="whatsapp" size={24} color="#fff" />
+          <Text style={styles.textoBotonWhatsapp}>ÚNETE AL CHAT DE PILOTOS</Text>
+        </TouchableOpacity>
+
+        {/* ENLACE TORNEO PÚBLICO */}
+        <TouchableOpacity 
+          style={styles.linkContainer} 
+          onPress={() => navigation.navigate("TorneoPublicoScreen")}
+        >
+          <Text style={styles.linkTexto}>Ver cuadrante público del torneo →</Text>
+        </TouchableOpacity>
         
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0a0a0a", justifyContent: "center", padding: 20 },
   card: { backgroundColor: "#151515", padding: 30, borderRadius: 4, borderWidth: 1, borderColor: "#222", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.8, shadowRadius: 10, elevation: 10 },
@@ -130,7 +146,41 @@ const styles = StyleSheet.create({
   form: { marginBottom: 25 },
   label: { color: "#ffd700", fontSize: 10, fontWeight: "bold", marginBottom: 5, letterSpacing: 2 },
   input: { backgroundColor: "#0f0f0f", color: "#fff", borderWidth: 1, borderColor: "#333", padding: 15, marginBottom: 15, borderRadius: 2, fontSize: 14, fontWeight: 'bold' },
+  
+  // Botón Rojo (Entrar)
   boton: { backgroundColor: "#e63946", paddingVertical: 18, borderRadius: 2, alignItems: "center" },
   botonDesactivado: { backgroundColor: "#882229" },
-  textoBoton: { color: "#fff", fontSize: 16, fontWeight: "900", letterSpacing: 2 }
+  textoBoton: { color: "#fff", fontSize: 16, fontWeight: "900", letterSpacing: 2 },
+
+  // Botón Verde (WhatsApp) - AJUSTADO
+  botonWhatsapp: {
+    backgroundColor: "#25D366", 
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15, // Un poco menos de padding
+    paddingHorizontal: 10, // Padding lateral para que no toque los bordes
+    borderRadius: 2,
+    marginTop: 15,
+    gap: 8,
+  },
+  textoBotonWhatsapp: {
+    color: "#fff",
+    fontSize: 12, // Letra un poco más pequeña para que quepa bien
+    fontWeight: "900",
+    letterSpacing: 1,
+    flexShrink: 1, // Esto hace que si no cabe, se encoja en vez de salirse
+    textAlign: 'center'
+  },
+
+  // Enlace Inferior
+  linkContainer: {
+    marginTop: 25,
+    alignItems: 'center'
+  },
+  linkTexto: {
+    color: '#888',
+    fontSize: 13,
+    textDecorationLine: 'underline',
+  }
 });
