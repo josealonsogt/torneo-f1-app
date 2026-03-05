@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore'; // <-- Usa esto en lugar de initializeFirestore
+import { initializeFirestore } from 'firebase/firestore'; // Volvemos a usar initializeFirestore
 
-// Tus credenciales (esto lo dejas igual)
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -11,8 +10,13 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID
 };
 
-// Inicializar Firebase
+// 🕵️ CHIVATO: Esto imprimirá el ID en la consola. 
+// Si en tu navegador sale "undefined", el problema son las variables de Vercel.
+console.log("🔥 Proyecto Firebase conectado:", firebaseConfig.projectId);
+
 const app = initializeApp(firebaseConfig);
 
-// Inicializar Firestore (VERSIÓN SIMPLE Y SEGURA)
-export const db = getFirestore(app);
+// 🛡️ MAGIA ANTI-OFFLINE: Obligamos a Firebase a usar "Long Polling"
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true
+});
