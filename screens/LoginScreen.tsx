@@ -12,7 +12,6 @@ export default function LoginScreen() {
   const [cargando, setCargando] = useState(false);
 
   const manejarAcceso = async () => {
-    // 🚨 PARCHE WEB: Avisar si faltan datos
     if (!nombre || !correo || !dni) {
       if (Platform.OS === "web") {
         window.alert("⚠️ FALTAN DATOS\nPor favor, rellena todos los campos para calentar motores.");
@@ -32,7 +31,6 @@ export default function LoginScreen() {
     const resultado = await accederTorneo(nombre, correo, dni);
     setCargando(false);
 
-    // 🔒 PARCHE WEB: Avisar si el portero no te deja entrar
     if (resultado.error) {
       if (Platform.OS === "web") {
         window.alert("⛔ ACCESO DENEGADO\n" + resultado.error);
@@ -42,7 +40,6 @@ export default function LoginScreen() {
       return;
     }
 
-    // Si todo va bien y tenemos ID, pa' dentro
     if (resultado.id) {
       navigation.replace("HomeScreen", { jugadorId: resultado.id });
     } else {

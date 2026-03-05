@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Button,
+  Linking, // <-- IMPORTANTE: Añadido para abrir WhatsApp
   ScrollView,
   StyleSheet,
   Text,
@@ -53,7 +54,6 @@ export default function GestionCarrerasScreen() {
     setHoraCarrera(carrera.hora || ""); 
     const posInicial: { [key: string]: string } = {};
     carrera.participantes.forEach((p) => {
-      // Si la posición es 99, mostramos DNF. Si es mayor que 0, el número. Si no, vacío.
       posInicial[p.jugador_id] = p.posicion === 99 ? "DNF" : (p.posicion > 0 ? p.posicion.toString() : "");
     });
     setPosiciones(posInicial);
@@ -83,15 +83,28 @@ export default function GestionCarrerasScreen() {
     }
   };
 
+  // 📲 NUEVA FUNCIÓN: AVISAR POR WHATSAPP
+  const avisarPorWhatsApp = () => {
+    if (!carreraSeleccionada || !carreraSeleccionada.participantes || carreraSeleccionada.participantes.length === 0) {
+      Alert.alert("Aviso", "No hay pilotos en esta carrera para avisar.");
+      return;
+    }
+    
+    const nombres = carreraSeleccionada.participantes.map((p: any) => p.nombre).join(", ");
+    const hora = horaCarrera ? ` a las ${horaCarrera}` : " en breve";
+    const mensaje = `*¡ATENCIÓN PILOTOS!* \nLa *${carreraSeleccionada.nombre_carrera}* está a punto de comenzar${hora}.\n\nParticipantes: ${nombres}\n\n¡Acudid inmediatamente a la zona de pista! `;
+    
+    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+    Linking.openURL(url).catch(() => Alert.alert("Error", "No se pudo abrir WhatsApp."));
+  };
+
   const guardarResultados = async () => {
     if (!carreraSeleccionada) return;
 
-    // Convertimos los valores: "DNF" pasa a ser 99
     const posicionesArray = Object.values(posiciones).map((v) => 
       v.trim().toUpperCase() === "DNF" ? 99 : parseInt(v)
     );
     
-    // Comprobamos si hay algún hueco vacío o un número raro (que no sea 99 ni del 1 al 8)
     const hayInvalidas = posicionesArray.some((p) => isNaN(p) || (p < 1 && p !== 99) || (p > 8 && p !== 99));
 
     if (hayInvalidas) {
@@ -99,7 +112,6 @@ export default function GestionCarrerasScreen() {
       return;
     }
 
-    // Validar repetidas SOLO entre los que han corrido (los DNF sí pueden repetirse)
     const posicionesNormales = posicionesArray.filter(p => p !== 99);
     const posicionesUnicas = new Set(posicionesNormales);
     if (posicionesUnicas.size !== posicionesNormales.length) {
@@ -125,7 +137,7 @@ export default function GestionCarrerasScreen() {
       });
 
       participantesActualizados.forEach((p) => {
-        let nuevoEstado = "eliminado"; // Si es 99 (DNF), se quedará aquí automáticamente
+        let nuevoEstado = "eliminado"; 
         const pos = p.posicion;
         const fase = carreraSeleccionada.fase;
 
@@ -185,6 +197,11 @@ export default function GestionCarrerasScreen() {
             <Button title="Actualizar Hora" onPress={guardarHora} color="#2a9d8f" />
           </View>
         </View>
+
+        {/* 🟢 BOTÓN NUEVO DE WHATSAPP APLICADO AQUÍ */}
+        <View style={{ marginBottom: 10 }}>
+          <Button title="📲 AVISAR A PILOTOS POR WHATSAPP" onPress={avisarPorWhatsApp} color="#25D366" />
+        </View>
         
         {carreraSeleccionada.estado === "pendiente" && (
           <View style={{ marginBottom: 20 }}>
@@ -192,7 +209,6 @@ export default function GestionCarrerasScreen() {
           </View>
         )}
 
-        {/* LISTA DE PILOTOS CON BOTÓN DNF */}
         {carreraSeleccionada.participantes.map((participante) => (
           <View key={participante.jugador_id} style={styles.filaPiloto}>
             <Text style={styles.nombrePiloto}>{participante.nombre}</Text>
@@ -207,8 +223,8 @@ export default function GestionCarrerasScreen() {
 
               <TextInput
                 style={styles.inputPosicion}
-                keyboardType="default" // Cambiado a default para que deje escribir texto
-                maxLength={3} // DNF tiene 3 letras
+                keyboardType="default" 
+                maxLength={3} 
                 value={posiciones[participante.jugador_id] || ""}
                 onChangeText={(text) =>
                   setPosiciones({ ...posiciones, [participante.jugador_id]: text })
@@ -244,7 +260,6 @@ export default function GestionCarrerasScreen() {
         </Text>
       ) : (
         <>
-          {/* FILTROS POR FASE */}
           <View style={styles.contenedorFiltros}>
             <Text style={styles.tituloFiltros}>Filtrar por fase:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtrosScroll}>
@@ -257,7 +272,6 @@ export default function GestionCarrerasScreen() {
                 </Text>
               </TouchableOpacity>
               
-              {/* Contar carreras por fase */}
               {Array.from(new Set(carreras.map(c => c.fase))).map(fase => {
                 const cantidad = carreras.filter(c => c.fase === fase).length;
                 const faseLabel = fase === "clasificatoria" ? "Clasificatorias" 
@@ -281,7 +295,6 @@ export default function GestionCarrerasScreen() {
             </ScrollView>
           </View>
 
-          {/* LISTA DE CARRERAS FILTRADAS */}
           {carreras
             .filter(c => filtroFase === null || c.fase === filtroFase)
             .map((carrera) => (
@@ -337,7 +350,6 @@ const styles = StyleSheet.create({
   inputPosicion: { width: 50, height: 40, borderWidth: 1, borderColor: "#003049", textAlign: "center", fontSize: 16, fontWeight: "bold", backgroundColor: "white" },
   botonDNF: { backgroundColor: '#666', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 5, marginRight: 10 },
   textoDNF: { color: 'white', fontWeight: 'bold', fontSize: 12 },
-  // NUEVOS ESTILOS PARA FILTROS
   contenedorFiltros: { marginBottom: 15 },
   tituloFiltros: { fontSize: 14, fontWeight: 'bold', color: '#003049', marginBottom: 8 },
   filtrosScroll: { flexDirection: 'row' },
