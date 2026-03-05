@@ -13,7 +13,8 @@ export default function HomeScreen() {
 
   const [faseActual, setFaseActual] = useState("Cargando...");
   const [estadoJugador, setEstadoJugador] = useState<EstadoJugador>("inscrito");
-  const [miCarrera, setMiCarrera] = useState<any>(null);
+  // 🔄 CAMBIO: Ahora guardamos un ARRAY de carreras, no solo una.
+  const [misCarreras, setMisCarreras] = useState<any[]>([]);
   const [nombreJugador, setNombreJugador] = useState("");
   const [buscandoCarrera, setBuscandoCarrera] = useState(true);
 
@@ -52,12 +53,14 @@ export default function HomeScreen() {
           if (esta) misCarrerasEncontradas.push(carrera);
         }
       });
+      
       if (misCarrerasEncontradas.length > 0) {
+        // 🔄 CAMBIO: Ordenamos para que la historia vaya de arriba (Clasificatoria) a abajo (Final)
         const pesos: any = { clasificatoria: 1, semifinal_a: 2, semifinal_b: 2, final_b: 3, final: 4 };
-        misCarrerasEncontradas.sort((a, b) => pesos[b.fase] - pesos[a.fase]);
-        setMiCarrera(misCarrerasEncontradas[0]);
+        misCarrerasEncontradas.sort((a, b) => pesos[a.fase] - pesos[b.fase]);
+        setMisCarreras(misCarrerasEncontradas);
       } else {
-        setMiCarrera(null);
+        setMisCarreras([]);
       }
       setBuscandoCarrera(false); 
     });
@@ -65,7 +68,7 @@ export default function HomeScreen() {
   }, [jugadorId]);
 
   const obtenerMensajeEstado = () => {
-    if (faseActual === "clasificatoria" && estadoJugador === "inscrito" && !miCarrera && !buscandoCarrera) {
+    if (faseActual === "clasificatoria" && estadoJugador === "inscrito" && misCarreras.length === 0 && !buscandoCarrera) {
       return { icono: "timer-sand", iconLib: "MaterialCommunityIcons", texto: "EN LISTA DE ESPERA", color: "#e63946" }; 
     }
     switch (estadoJugador) {
@@ -81,7 +84,7 @@ export default function HomeScreen() {
   };
 
   const mensaje = obtenerMensajeEstado();
-  const esOverbooking = faseActual === "clasificatoria" && estadoJugador === "inscrito" && !miCarrera && !buscandoCarrera;
+  const esOverbooking = faseActual === "clasificatoria" && estadoJugador === "inscrito" && misCarreras.length === 0 && !buscandoCarrera;
 
   if (buscandoCarrera) {
     return (
@@ -126,7 +129,7 @@ export default function HomeScreen() {
         <View style={styles.tarjetaListaEspera}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <Ionicons name="warning" size={24} color="#e63946" />
-            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#fff' }}>¡Las 128 plazas están llenas!</Text>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#fff' }}>¡Las plazas están llenas!</Text>
           </View>
           <Text style={styles.textoListaEspera}>
             Estás apuntado como <Text style={{fontWeight: 'bold', color: '#fff'}}>reserva</Text>. Presta atención a la megafonía por si algún piloto falla y queda un hueco libre en la parrilla.
@@ -155,54 +158,62 @@ export default function HomeScreen() {
         </View>
       ) : null}
 
-      {miCarrera && estadoJugador !== "eliminado" && estadoJugador !== "ganador" ? (
-        <View style={styles.tarjetaCarrera}>
-          <View style={styles.cabeceraCarrera}>
-            <Text style={styles.tituloCarrera}>{miCarrera.nombre_carrera}</Text>
-            {miCarrera.estado === "en_curso" ? (
-              <View style={styles.badgeEnCurso}>
-                <Ionicons name="radio-button-on" size={12} color="#e63946" />
-                <Text style={styles.textoBadge}> EN CURSO</Text>
-              </View>
-            ) : (
-              <Text style={styles.subtituloCarrera}>{miCarrera.estado.toUpperCase()}</Text>
-            )}
-          </View>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Ionicons name="time-outline" size={16} color="#ffd700" />
-            <Text style={styles.horaCarrera}>
-              {miCarrera.hora ? `Hora: ${miCarrera.hora}` : "Hora: Por definir"}
-            </Text>
-          </View>
-
-          <View style={styles.separador} />
-
-          <Text style={styles.participantesTitulo}>PARRILLA DE SALIDA</Text>
-          <View style={styles.participantesContainer}>
-            {miCarrera.participantes?.map((participante: any, index: number) => {
-              const esYo = participante.jugador_id === jugadorId;
-              return (
-                // 🛡️ PARCHE CLON y PARCHE TEXTO APLICADOS AQUÍ
-                <View key={`${index}-${participante.jugador_id}`} style={[styles.filaParticipante, esYo ? styles.filaYo : null]}>
-                  <Text style={[styles.participanteNumero, esYo ? styles.textoYo : null]}>P{index + 1}</Text>
-                  <Text style={[styles.participanteNombre, esYo ? styles.textoYo : null]} numberOfLines={1}>
-                    {participante.nombre} {esYo ? "(TÚ)" : ""}
+      {/* 🏁 ZONA DE HISTORIAL DE CARRERAS */}
+      {misCarreras.length > 0 && (
+        <View style={{ width: '100%', marginTop: 10 }}>
+          <Text style={styles.tituloHistorial}>🏁 TU HISTORIAL DE CARRERAS</Text>
+          
+          {misCarreras.map((carrera, indexCarrera) => (
+            <View key={carrera.id} style={styles.tarjetaCarrera}>
+              <View style={styles.cabeceraCarrera}>
+                <Text style={styles.tituloCarrera}>{carrera.nombre_carrera}</Text>
+                {carrera.estado === "en_curso" ? (
+                  <View style={styles.badgeEnCurso}>
+                    <Ionicons name="radio-button-on" size={12} color="#e63946" />
+                    <Text style={styles.textoBadge}> EN CURSO</Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.subtituloCarrera, carrera.estado === "finalizada" && {color: '#4caf50'}]}>
+                    {carrera.estado.toUpperCase()}
                   </Text>
-                  {participante.posicion > 0 && participante.posicion !== 99 ? (
-                    <Text style={[styles.posicionFinal, participante.posicion === 1 ? {color:'#ffd700'} : null]}>
-                      Pº {participante.posicion}
-                    </Text>
-                  ) : null}
-                  {participante.posicion === 99 ? (
-                    <Text style={{color:'#e63946', fontWeight:'bold', fontSize:14}}>DNF</Text>
-                  ) : null}
-                </View>
-              );
-            })}
-          </View>
+                )}
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Ionicons name="time-outline" size={16} color="#ffd700" />
+                <Text style={styles.horaCarrera}>
+                  {carrera.hora ? `Hora: ${carrera.hora}` : "Hora: Por definir"}
+                </Text>
+              </View>
+
+              <View style={styles.separador} />
+
+              <Text style={styles.participantesTitulo}>PARRILLA DE SALIDA</Text>
+              <View style={styles.participantesContainer}>
+                {carrera.participantes?.map((participante: any, index: number) => {
+                  const esYo = participante.jugador_id === jugadorId;
+                  return (
+                    <View key={`${index}-${participante.jugador_id}`} style={[styles.filaParticipante, esYo ? styles.filaYo : null]}>
+                      <Text style={[styles.participanteNumero, esYo ? styles.textoYo : null]}>P{index + 1}</Text>
+                      <Text style={[styles.participanteNombre, esYo ? styles.textoYo : null]} numberOfLines={1}>
+                        {participante.nombre} {esYo ? "(TÚ)" : ""}
+                      </Text>
+                      {participante.posicion > 0 && participante.posicion !== 99 ? (
+                        <Text style={[styles.posicionFinal, participante.posicion === 1 ? {color:'#ffd700'} : null]}>
+                          Pº {participante.posicion}
+                        </Text>
+                      ) : null}
+                      {participante.posicion === 99 ? (
+                        <Text style={{color:'#e63946', fontWeight:'bold', fontSize:14}}>DNF</Text>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
         </View>
-      ) : null}
+      )}
 
       <View style={styles.contenedorBotones}>
         <TouchableOpacity style={styles.botonBracket} onPress={() => navigation.navigate("PantallaGiganteScreen")}>
@@ -239,7 +250,15 @@ const styles = StyleSheet.create({
   estadoTexto: { fontSize: 18, fontWeight: "bold", textAlign: "center", letterSpacing: 0.5 },
   tarjetaListaEspera: { width: "100%", padding: 20, backgroundColor: "rgba(230, 57, 70, 0.15)", borderRadius: 8, borderWidth: 2, borderColor: "#e63946", borderStyle: 'dashed', alignItems: "center", marginBottom: 15 },
   textoListaEspera: { fontSize: 15, color: "#ccc", textAlign: "center", lineHeight: 22 },
-  tarjetaCarrera: { width: "100%", padding: 20, backgroundColor: "#1e1e1e", borderRadius: 10, borderWidth: 1, borderColor: "#444", marginBottom: 15, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 5 },
+  tarjetaEliminado: { width: "100%", padding: 30, backgroundColor: "#1a1a1a", borderRadius: 8, borderWidth: 1, borderColor: "#444", alignItems: "center", marginBottom: 15 },
+  textoEliminado: { fontSize: 16, color: "#888", textAlign: "center", lineHeight: 24 },
+  tarjetaGanador: { width: "100%", padding: 30, backgroundColor: "rgba(255, 215, 0, 0.1)", borderRadius: 8, borderWidth: 2, borderColor: "#ffd700", alignItems: "center", marginBottom: 15 },
+  textoGanador: { fontSize: 18, color: "#ffd700", textAlign: "center", fontWeight: "bold", lineHeight: 28 },
+  
+  // Novedad: Título del historial
+  tituloHistorial: { color: '#ffd700', fontSize: 16, fontWeight: 'bold', letterSpacing: 1.5, marginBottom: 15, marginTop: 10, alignSelf: 'flex-start' },
+  
+  tarjetaCarrera: { width: "100%", padding: 20, backgroundColor: "#1e1e1e", borderRadius: 10, borderWidth: 1, borderColor: "#444", marginBottom: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 5 },
   cabeceraCarrera: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   tituloCarrera: { fontSize: 20, fontWeight: "bold", color: "#fff" },
   subtituloCarrera: { fontSize: 12, color: "#888", fontWeight: "bold" },
@@ -255,10 +274,7 @@ const styles = StyleSheet.create({
   participanteNombre: { fontSize: 16, flex: 1, color: "#eee", fontWeight: "500" },
   textoYo: { color: "#ffd700", fontWeight: "900" },
   posicionFinal: { fontSize: 14, color: "#06ffa5", fontWeight: "bold" },
-  tarjetaEliminado: { width: "100%", padding: 30, backgroundColor: "#1a1a1a", borderRadius: 8, borderWidth: 1, borderColor: "#444", alignItems: "center", marginBottom: 15 },
-  textoEliminado: { fontSize: 16, color: "#888", textAlign: "center", lineHeight: 24 },
-  tarjetaGanador: { width: "100%", padding: 30, backgroundColor: "rgba(255, 215, 0, 0.1)", borderRadius: 8, borderWidth: 2, borderColor: "#ffd700", alignItems: "center", marginBottom: 15 },
-  textoGanador: { fontSize: 18, color: "#ffd700", textAlign: "center", fontWeight: "bold", lineHeight: 28 },
+  
   contenedorBotones: { width: "100%", marginTop: 15, marginBottom: 40 },
   botonBracket: { backgroundColor: "#1a1a1a", paddingVertical: 18, borderRadius: 8, alignItems: "center", marginBottom: 15, borderWidth: 2, borderColor: "#ffd700", shadowColor: "#ffd700", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 6, elevation: 6 },
   textoBotonBracket: { color: "#ffd700", fontSize: 16, fontWeight: "bold", letterSpacing: 1 },

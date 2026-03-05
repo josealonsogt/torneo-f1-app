@@ -3,15 +3,15 @@ import { useNavigation } from "@react-navigation/native";
 import { collection, doc, onSnapshot, updateDoc, writeBatch } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Button,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Button,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { db } from "../services/firebaseConfig";
 import { Carrera } from "../types/entities";

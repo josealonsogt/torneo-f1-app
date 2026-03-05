@@ -1,4 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
+import { collection, doc, getDocs, query, where, writeBatch } from "firebase/firestore";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -15,7 +16,7 @@ import {
   limpiarCarreras,
   limpiarJugadores
 } from "../services/adminService";
-
+import { db } from "../services/firebaseConfig"; // <-- Importamos db para el seguro
 import {
   abrirInscripciones,
   generarFinal,
@@ -29,162 +30,118 @@ export default function AdminScreen() {
   const navigation = useNavigation<any>();
   const [cargando, setCargando] = useState(false);
 
-  // --- FUNCIONES DE LÓGICA (Mantenidas exactamente igual) ---
-  const handleGenerarPilotosPrueba = async () => {
-    setCargando(true);
-    const exito = await generarPilotosPrueba();
-    setCargando(false);
-    if (exito) {
-      if (Platform.OS === "web") window.alert("✅ 128 Bots Creados\nSe han registrado y asignado a sus carreras correctamente.");
-      else Alert.alert("✅ 128 Bots Creados", "Se han registrado y asignado a sus carreras correctamente.");
-    } else {
-      if (Platform.OS === "web") window.alert("Error\nNo se pudieron generar los pilotos.");
-      else Alert.alert("Error", "No se pudieron generar los pilotos.");
-    }
+  // --- 🛡️ SEGURO ANTI-ACCIDENTES ---
+  const verificarClasificatoriasTerminadas = async () => {
+    const q = query(collection(db, "carreras"), where("fase", "==", "clasificatoria"));
+    const snapshot = await getDocs(q);
+    let hayPendientes = false;
+    
+    snapshot.forEach(docSnap => {
+      const carrera = docSnap.data();
+      // Si la carrera tiene pilotos dentro y NO está finalizada... ¡Peligro!
+      if (carrera.participantes && carrera.participantes.length > 0 && carrera.estado !== "finalizada") {
+        hayPendientes = true;
+      }
+    });
+    return !hayPendientes; // Devuelve true si todo está en orden
   };
 
-  const ejecutarLimpieza = async () => {
+  // --- 🔄 BOTÓN DEL PÁNICO: DESHACER SEMIS ---
+  const ejecutarDeshacerSemis = async () => {
     setCargando(true);
-    const exito = await limpiarJugadores();
-    setCargando(false);
-    if (exito) {
-      if (Platform.OS === "web") window.alert("Limpieza completada 🧹\nYa no hay jugadores inscritos.");
-      else Alert.alert("Limpieza completada 🧹", "Ya no hay jugadores inscritos.");
-    } else {
-      if (Platform.OS === "web") window.alert("Error\nNo se pudo limpiar la base de datos.");
-      else Alert.alert("Error", "No se pudo limpiar la base de datos.");
+    try {
+      const batch = writeBatch(db);
+      
+      // Buscar y destruir las carreras de Semifinales A y B
+      const qA = query(collection(db, "carreras"), where("fase", "==", "semifinal_a"));
+      const qB = query(collection(db, "carreras"), where("fase", "==", "semifinal_b"));
+      const [snapA, snapB] = await Promise.all([getDocs(qA), getDocs(qB)]);
+      
+      snapA.forEach(d => batch.delete(d.ref));
+      snapB.forEach(d => batch.delete(d.ref));
+      
+      // Volver el reloj a fase clasificatoria
+      batch.update(doc(db, "configuracion", "torneo"), { fase_actual: "clasificatoria" });
+      
+      await batch.commit();
+      if (Platform.OS === "web") window.alert("⏪ Marcha Atrás\nSemifinales borradas. Volvemos a Clasificatorias.");
+      else Alert.alert("⏪ Marcha Atrás", "Semifinales borradas. Volvemos a Clasificatorias.");
+    } catch (error) {
+      console.error(error);
+      if (Platform.OS === "web") window.alert("Error al deshacer semis.");
+      else Alert.alert("Error", "No se pudieron deshacer las semifinales.");
     }
+    setCargando(false);
   };
 
-  const handleLimpiarBaseDeDatos = async () => {
-    const mensajePeligro = "¿Estás seguro de que quieres BORRAR TODOS los jugadores de la base de datos?";
+  const handleDeshacerSemis = () => {
+    const msj = "¿Te has equivocado al generar las semis?\n\nEsto borrará las semifinales actuales para que puedas terminar las clasificatorias que te faltaban y volver a darle al botón.";
     if (Platform.OS === "web") {
-      const seguro = window.confirm("⚠️ PELIGRO\n" + mensajePeligro);
-      if (seguro) ejecutarLimpieza();
+      if (window.confirm("⚠️ Deshacer Semifinales\n" + msj)) ejecutarDeshacerSemis();
     } else {
-      Alert.alert("⚠️ PELIGRO", mensajePeligro, [
+      Alert.alert("⚠️ Deshacer Semifinales", msj, [
         { text: "Cancelar", style: "cancel" },
-        { text: "Sí, borrar todo", style: "destructive", onPress: ejecutarLimpieza },
+        { text: "Sí, Deshacer", style: "destructive", onPress: ejecutarDeshacerSemis }
       ]);
     }
   };
 
-  const ejecutarLimpiezaCarreras = async () => {
-    setCargando(true);
-    const exito = await limpiarCarreras();
-    setCargando(false);
-    if (exito) {
-      if (Platform.OS === "web") window.alert("Carreras eliminadas 💥\nEl cuadrante está vacío.");
-      else Alert.alert("Carreras eliminadas 💥", "El cuadrante está vacío y listo para empezar.");
-    } else {
-      if (Platform.OS === "web") window.alert("Error al borrar las carreras.");
-      else Alert.alert("Error", "No se pudieron borrar las carreras.");
-    }
-  };
-
-  const handleLimpiarCarreras = async () => {
-    const mensajePeligro = "¿Seguro que quieres BORRAR TODAS LAS CARRERAS? Esto vaciará el cuadrante por completo.";
-    if (Platform.OS === "web") {
-      const seguro = window.confirm("☢️ BOTÓN NUCLEAR\n" + mensajePeligro);
-      if (seguro) ejecutarLimpiezaCarreras();
-    } else {
-      Alert.alert("☢️ BOTÓN NUCLEAR", mensajePeligro, [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Sí, destruir carreras", style: "destructive", onPress: ejecutarLimpiezaCarreras },
-      ]);
-    }
-  };
-
-  const handleAbrirInscripciones = async () => {
-    setCargando(true);
-    const exito = await abrirInscripciones();
-    setCargando(false);
-    if (exito) {
-      if (Platform.OS === "web") window.alert("¡Clasificatorias Creadas! 🏁\nSe han generado las 16 carreras vacías.");
-      else Alert.alert("¡Clasificatorias Creadas! 🏁", "Se han generado las 16 carreras vacías.");
-    } else {
-      if (Platform.OS === "web") window.alert("Error al crear las carreras.");
-      else Alert.alert("Error", "Fallo al crear las carreras.");
-    }
-  };
-
-  const handleCerrarPuerta = async () => {
-    setCargando(true);
-    const exito = await setEstadoInscripciones(false);
-    setCargando(false);
-    if (exito) {
-      if (Platform.OS === "web") window.alert("🔒 Puerta Cerrada\nNadie puede registrarse en este momento.");
-      else Alert.alert("🔒 Puerta Cerrada", "Nadie puede registrarse en este momento.");
-    }
-  };
-
-  const handleAbrirPuerta = async () => {
-    setCargando(true);
-    const exito = await setEstadoInscripciones(true);
-    setCargando(false);
-    if (exito) {
-      if (Platform.OS === "web") window.alert("🔓 Puerta Abierta\n¡Inscripciones abiertas! Ya pueden entrar a las carreras.");
-      else Alert.alert("🔓 Puerta Abierta", "¡Inscripciones abiertas! Ya pueden entrar a las carreras.");
-    }
-  };
+  // --- FUNCIONES DE LÓGICA ---
+  const handleGenerarPilotosPrueba = async () => { /* ... (igual que antes) ... */ setCargando(true); await generarPilotosPrueba(); setCargando(false); };
+  const ejecutarLimpieza = async () => { setCargando(true); await limpiarJugadores(); setCargando(false); };
+  const handleLimpiarBaseDeDatos = async () => { if (Platform.OS === "web") { if(window.confirm("⚠️ Borrar Todo")) ejecutarLimpieza(); } else { Alert.alert("⚠️ Borrar Todo", "Seguro?", [{ text: "Cancelar" }, { text: "Sí", onPress: ejecutarLimpieza }]); } };
+  const ejecutarLimpiezaCarreras = async () => { setCargando(true); await limpiarCarreras(); setCargando(false); };
+  const handleLimpiarCarreras = async () => { if (Platform.OS === "web") { if(window.confirm("☢️ Borrar Carreras")) ejecutarLimpiezaCarreras(); } else { Alert.alert("☢️ Borrar Carreras", "Seguro?", [{ text: "Cancelar" }, { text: "Sí", onPress: ejecutarLimpiezaCarreras }]); } };
+  const handleAbrirInscripciones = async () => { setCargando(true); await abrirInscripciones(); setCargando(false); };
+  const handleCerrarPuerta = async () => { setCargando(true); await setEstadoInscripciones(false); setCargando(false); };
+  const handleAbrirPuerta = async () => { setCargando(true); await setEstadoInscripciones(true); setCargando(false); };
 
   const handleGenerarSemifinalesA = async () => {
     setCargando(true);
+    const todoListo = await verificarClasificatoriasTerminadas();
+    if (!todoListo) {
+      setCargando(false);
+      const msjError = "Aún quedan Clasificatorias pendientes por terminar o con pilotos dentro. Termínalas primero antes de arrancar el autobús.";
+      if (Platform.OS === "web") window.alert("🛑 ALTO AHÍ\n" + msjError);
+      else Alert.alert("🛑 ALTO AHÍ", msjError);
+      return;
+    }
+
     const exito = await generarSemifinalesA();
     setCargando(false);
     if (exito) {
-      if (Platform.OS === "web") window.alert("¡Listo! 🏁\nSemifinales A generadas (1° de cada clasificatoria)");
-      else Alert.alert("¡Listo! 🏁", "Semifinales A generadas (1° de cada clasificatoria)");
+      if (Platform.OS === "web") window.alert("¡Listo! 🏁\nSemifinales A generadas.");
+      else Alert.alert("¡Listo! 🏁", "Semifinales A generadas.");
     } else {
-      const mensaje = "No se han podido generar.\n\nVerifica que:\n• Las 16 clasificatorias estén finalizadas\n• Haya pilotos con estado 'clasificado_semi_a'";
-      if (Platform.OS === "web") window.alert("❌ Error\n" + mensaje);
-      else Alert.alert("❌ Error", mensaje);
+      if (Platform.OS === "web") window.alert("❌ Error\nFaltan finalistas.");
+      else Alert.alert("❌ Error", "Faltan finalistas.");
     }
   };
 
   const handleGenerarSemifinalesB = async () => {
     setCargando(true);
+    const todoListo = await verificarClasificatoriasTerminadas();
+    if (!todoListo) {
+      setCargando(false);
+      if (Platform.OS === "web") window.alert("🛑 ALTO AHÍ\nTermina todas las clasificatorias primero.");
+      else Alert.alert("🛑 ALTO AHÍ", "Termina todas las clasificatorias primero.");
+      return;
+    }
+
     const exito = await generarSemifinalesB();
     setCargando(false);
     if (exito) {
-      if (Platform.OS === "web") window.alert("¡Listo! 🏁\nSemifinales B generadas (2° de cada clasificatoria)");
-      else Alert.alert("¡Listo! 🏁", "Semifinales B generadas (2° de cada clasificatoria)");
+      if (Platform.OS === "web") window.alert("¡Listo! 🏁\nSemifinales B generadas.");
+      else Alert.alert("¡Listo! 🏁", "Semifinales B generadas.");
     } else {
-      const mensaje = "No se han podido generar.\n\nVerifica que:\n• Las 16 clasificatorias estén finalizadas\n• Haya pilotos con estado 'clasificado_semi_b'";
-      if (Platform.OS === "web") window.alert("❌ Error\n" + mensaje);
-      else Alert.alert("❌ Error", mensaje);
+      if (Platform.OS === "web") window.alert("❌ Error\nFaltan finalistas.");
+      else Alert.alert("❌ Error", "Faltan finalistas.");
     }
   };
 
-  const handleGenerarFinalB = async () => {
-    setCargando(true);
-    const exito = await generarFinalB();
-    setCargando(false);
-    if (exito) {
-      if (Platform.OS === "web") window.alert("¡Listo! 🏁\nFinal B generada (Top 4 de cada Semifinal B)");
-      else Alert.alert("¡Listo! 🏁", "Final B generada (Top 4 de cada Semifinal B)");
-    } else {
-      const mensaje = "No se ha podido generar.\n\nVerifica que:\n• Las 2 Semifinales B estén finalizadas\n• Haya pilotos con estado 'clasificado_final_b'";
-      if (Platform.OS === "web") window.alert("❌ Error\n" + mensaje);
-      else Alert.alert("❌ Error", mensaje);
-    }
-  };
+  const handleGenerarFinalB = async () => { setCargando(true); await generarFinalB(); setCargando(false); };
+  const handleGenerarFinal = async () => { setCargando(true); await generarFinal(); setCargando(false); };
 
-  const handleGenerarFinal = async () => {
-    setCargando(true);
-    const exito = await generarFinal();
-    setCargando(false);
-    if (exito) {
-      if (Platform.OS === "web") window.alert("¡GRAN FINAL! 🏆\n¡La gran final ha sido generada!");
-      else Alert.alert("¡GRAN FINAL! 🏆", "¡La gran final ha sido generada!");
-    } else {
-      const mensaje = "No se ha podido generar.\n\nVerifica que:\n• Las 2 Semifinales A estén finalizadas\n• La Final B esté finalizada\n• Haya suficientes finalistas";
-      if (Platform.OS === "web") window.alert("❌ Error\n" + mensaje);
-      else Alert.alert("❌ Error", mensaje);
-    }
-  };
-
-  // --- COMPONENTE DE BOTÓN PERSONALIZADO PARA UNIFICAR ESTILOS ---
   const Boton = ({ titulo, color, onPress, textColor = "white" }: any) => (
     <TouchableOpacity 
       style={[styles.botonGeneral, { backgroundColor: color }, cargando && { opacity: 0.6 }]} 
@@ -227,16 +184,12 @@ export default function AdminScreen() {
         </View>
       </View>
 
-      {/* 2. SECCIÓN DE GESTIÓN (LO MÁS USADO) */}
+      {/* 2. SECCIÓN DE GESTIÓN */}
       <View style={styles.tarjeta}>
         <Text style={styles.tituloTarjeta}>2. Gestión del Torneo</Text>
         <Boton titulo="📝 Gestionar Carreras y Resultados" color="#003049" onPress={() => navigation.navigate("GestionCarrerasScreen")} />
         <Boton titulo="👥 Lista y Control de Pilotos" color="#003049" onPress={() => navigation.navigate("GestionPilotosScreen")} />
-        <Boton 
-          titulo="🔄 Mover Pilotos de Carrera" 
-          color="#0077b6" 
-          onPress={() => navigation.navigate("MoverPilotosScreen")} 
-        />
+        <Boton titulo="🔄 Mover Pilotos de Carrera" color="#0077b6" onPress={() => navigation.navigate("MoverPilotosScreen")} />
         
         <View style={styles.separador} />
         
@@ -258,10 +211,11 @@ export default function AdminScreen() {
         <Boton titulo="Generar GRAN FINAL 🏆" color="#e76f51" onPress={handleGenerarFinal} />
       </View>
 
-      {/* 4. SECCIÓN HERRAMIENTAS DE PRUEBA Y RESET (AL FINAL PARA NO DARLE SIN QUERER) */}
+      {/* 4. SECCIÓN HERRAMIENTAS DE PRUEBA Y RESET */}
       <View style={styles.tarjetaPeligro}>
         <Text style={styles.tituloTarjetaPeligro}>⚙️ Herramientas y Reset</Text>
         <Boton titulo="Simular 128 Pilotos (Bots)" color="#6c757d" onPress={handleGenerarPilotosPrueba} />
+        <Boton titulo="⏪ Deshacer Semifinales" color="#e0a96d" onPress={handleDeshacerSemis} />
         
         <View style={styles.filaBotones}>
           <View style={{ flex: 1, marginRight: 5 }}>
@@ -286,27 +240,19 @@ export default function AdminScreen() {
 
 const styles = StyleSheet.create({
   container: { flexGrow: 1, backgroundColor: "#f5f6fa", padding: 15 },
-  
   header: { alignItems: "center", marginBottom: 20, marginTop: 10 },
   tituloHeader: { fontSize: 28, fontWeight: "bold", color: "#003049" },
   subtituloHeader: { fontSize: 14, color: "#666" },
-  
   cargandoOverlay: { backgroundColor: "rgba(255,255,255,0.8)", padding: 15, borderRadius: 10, alignItems: "center", marginBottom: 15 },
   textoCargando: { marginTop: 10, fontWeight: "bold", color: "#003049" },
-
   tarjeta: { backgroundColor: "#fff", padding: 20, borderRadius: 12, marginBottom: 15, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
   tarjetaPeligro: { backgroundColor: "#fff0f0", padding: 20, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: "#ffcccc" },
-  
   tituloTarjeta: { fontSize: 16, fontWeight: "bold", color: "#333", marginBottom: 15, borderBottomWidth: 1, borderBottomColor: "#eee", paddingBottom: 5 },
   tituloTarjetaPeligro: { fontSize: 16, fontWeight: "bold", color: "#d00000", marginBottom: 15, borderBottomWidth: 1, borderBottomColor: "#ffcccc", paddingBottom: 5 },
-  
   botonGeneral: { paddingVertical: 14, borderRadius: 8, alignItems: "center", marginBottom: 10 },
   textoBoton: { fontSize: 15, fontWeight: "bold", letterSpacing: 0.5 },
-  
   filaBotones: { flexDirection: "row", justifyContent: "space-between", marginTop: 5 },
-  
   separador: { height: 1, backgroundColor: "#eee", marginVertical: 15 },
-  
   botonProyector: { backgroundColor: "#ffb703", paddingVertical: 15, borderRadius: 8, alignItems: "center", borderWidth: 1, borderColor: "#e5a300" },
   textoBotonProyector: { fontSize: 15, fontWeight: "bold", color: "#000", letterSpacing: 0.5 },
 });

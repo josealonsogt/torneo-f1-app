@@ -5,6 +5,7 @@ import GestionCarrerasScreen from "../screens/GestionCarrerasScreen";
 import GestionPilotosScreen from "../screens/GestionPilotosScreen";
 import HomeScreen from "../screens/HomeScreen";
 import LoginScreen from "../screens/LoginScreen";
+import MoverPilotosScreen from '../screens/MoverPilotosScreen';
 import PantallaGiganteScreen from "../screens/PantallaGiganteScreen";
 import PantallaGrandeDesktopScreen from "../screens/PantallaGrandeDesktopScreen";
 import TorneoPublicoScreen from '../screens/TorneoPublicoScreen';
@@ -21,6 +22,7 @@ export default function AppNavigator() {
       <Stack.Screen name="PantallaGiganteScreen" component={PantallaGiganteScreen} options={{ headerShown: false }} />
       <Stack.Screen name="PantallaGrandeDesktopScreen" component={PantallaGrandeDesktopScreen} options={{ headerShown: false }} />
       <Stack.Screen name="GestionPilotosScreen" component={GestionPilotosScreen} options={{ title: "Control de Pilotos" }} />
+      <Stack.Screen name="MoverPilotosScreen" component={MoverPilotosScreen} />
     </Stack.Navigator>
   );
 }

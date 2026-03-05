@@ -6,28 +6,51 @@ import { Jugador } from "../types/entities";
 
 export default function GestionPilotosScreen({ navigation }: any) {
   const [pilotos, setPilotos] = useState<(Jugador & { id: string })[]>([]);
+  // 🗺️ Nuevo estado para nuestro "Radar"
+  const [carrerasMap, setCarrerasMap] = useState<Record<string, string>>({});
   const [cargando, setCargando] = useState(true);
 
-  // Escuchar a todos los pilotos en tiempo real
+  // Escuchar a los pilotos y a las carreras en tiempo real
   useEffect(() => {
+    // 1. Escuchar Jugadores
     const jugadoresRef = collection(db, "jugadores");
-    const unsubscribe = onSnapshot(jugadoresRef, (snapshot) => {
+    const unsubscribeJugadores = onSnapshot(jugadoresRef, (snapshot) => {
       const lista = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as (Jugador & { id: string })[];
       lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
       setPilotos(lista);
       setCargando(false);
     });
 
-    return () => unsubscribe();
+    // 2. Escuchar Carreras (EL RADAR)
+    const carrerasRef = collection(db, "carreras");
+    const unsubscribeCarreras = onSnapshot(carrerasRef, (snapshot) => {
+      const nuevoMapa: Record<string, string> = {};
+      
+      snapshot.forEach((carreraDoc) => {
+        const carreraData = carreraDoc.data();
+        // Si la carrera tiene participantes, los registramos en el mapa
+        if (carreraData.participantes) {
+          carreraData.participantes.forEach((p: any) => {
+            nuevoMapa[p.jugador_id] = carreraData.nombre_carrera;
+          });
+        }
+      });
+      
+      setCarrerasMap(nuevoMapa);
+    });
+
+    // Limpiar los dos oídos al salir de la pantalla
+    return () => {
+      unsubscribeJugadores();
+      unsubscribeCarreras();
+    };
   }, []);
 
-  // 1. Lógica real de borrado aislada para poder llamarla desde Web o Móvil
+  // Lógica de borrado (Intacta, funciona perfecto)
   const ejecutarExpulsion = async (idPiloto: string, nombrePiloto: string) => {
     try {
-      // Borrar de jugadores
       await deleteDoc(doc(db, "jugadores", idPiloto));
 
-      // Sacarlo de su carrera
       const carrerasRef = collection(db, "carreras");
       const snapshot = await getDocs(carrerasRef);
       
@@ -46,17 +69,16 @@ export default function GestionPilotosScreen({ navigation }: any) {
         }
       });
 
-      if (Platform.OS === "web") window.alert(`${nombrePiloto} ha sido expulsado del torneo.`);
-      else Alert.alert("Eliminado", `${nombrePiloto} ha sido expulsado del torneo.`);
+      if (Platform.OS === "web") window.alert(`✅ ${nombrePiloto} ha sido expulsado del torneo.`);
+      else Alert.alert("Eliminado", `✅ ${nombrePiloto} ha sido expulsado del torneo.`);
       
     } catch (error) {
       console.error(error);
-      if (Platform.OS === "web") window.alert("No se pudo eliminar al piloto.");
-      else Alert.alert("Error", "No se pudo eliminar al piloto.");
+      if (Platform.OS === "web") window.alert("❌ No se pudo eliminar al piloto.");
+      else Alert.alert("Error", "❌ No se pudo eliminar al piloto.");
     }
   };
 
-  // 2. Función del botón que lanza la alerta correcta según el dispositivo
   const eliminarPiloto = (idPiloto: string, nombrePiloto: string) => {
     const mensaje = `¿Estás seguro de que quieres eliminar a ${nombrePiloto} del torneo?\n\nEsto lo borrará de la base de datos y lo sacará de la carrera en la que esté apuntado.`;
 
@@ -97,6 +119,16 @@ export default function GestionPilotosScreen({ navigation }: any) {
               <Text style={styles.nombre}>{piloto.nombre}</Text>
               <Text style={styles.dni}>DNI: {piloto.dni}</Text>
               <Text style={styles.estado}>Estado: {piloto.estado_torneo.toUpperCase()}</Text>
+              
+              {/* 📍 AQUI ESTÁ LA MAGIA DEL RADAR */}
+              <View style={styles.badgeCarrera}>
+                <Text style={styles.textoBadgeCarrera}>
+                  {carrerasMap[piloto.id] 
+                    ? `📍 Asignado a: ${carrerasMap[piloto.id]}` 
+                    : "❌ Sin carrera asignada"}
+                </Text>
+              </View>
+
             </View>
             
             <TouchableOpacity 
@@ -123,12 +155,16 @@ const styles = StyleSheet.create({
   subtitulo: { fontSize: 16, textAlign: "center", color: "#666", marginBottom: 20, fontWeight: "bold" },
   textoVacio: { fontSize: 16, textAlign: "center", color: "#666", marginTop: 40 },
   
-  tarjeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f9f9f9", padding: 15, borderWidth: 1, borderColor: "#ddd", marginBottom: 10 },
+  tarjeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f9f9f9", padding: 15, borderWidth: 1, borderColor: "#ddd", marginBottom: 10, borderRadius: 8 },
   info: { flex: 1 },
   nombre: { fontSize: 18, fontWeight: "bold", color: "#000", marginBottom: 3 },
   dni: { fontSize: 14, color: "#666" },
   estado: { fontSize: 12, color: "#2a9d8f", fontWeight: "bold", marginTop: 3 },
   
-  botonBorrar: { backgroundColor: "#ffe5e5", paddingVertical: 10, paddingHorizontal: 15, borderWidth: 1, borderColor: "#e63946" },
+  // Estilos del radar de carrera
+  badgeCarrera: { marginTop: 8, backgroundColor: "#e0fbfc", paddingVertical: 4, paddingHorizontal: 8, borderRadius: 4, alignSelf: 'flex-start' },
+  textoBadgeCarrera: { fontSize: 12, color: "#0077b6", fontWeight: "bold" },
+
+  botonBorrar: { backgroundColor: "#ffe5e5", paddingVertical: 10, paddingHorizontal: 15, borderWidth: 1, borderColor: "#e63946", borderRadius: 6 },
   textoBotonBorrar: { color: "#e63946", fontWeight: "bold" }
 });
