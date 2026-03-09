@@ -2,8 +2,13 @@ import { addDoc, collection, doc, getDoc, getDocs, query, runTransaction, Timest
 import { Jugador } from "../types/entities";
 import { db } from "./firebaseConfig";
 
-// Hemos añadido "error?: string" en la promesa para poder devolver el mensaje del candado
-export const accederTorneo = async (nombre: string, correo: string, dni: string): Promise<{ id: string | null; esNuevo: boolean; error?: string }> => {
+// Hemos añadido "error?: string" y "carreraAsignada?" para devolver info de confirmación
+export const accederTorneo = async (nombre: string, correo: string, dni: string): Promise<{ 
+  id: string | null; 
+  esNuevo: boolean; 
+  error?: string; 
+  carreraAsignada?: { nombre: string; numero: number } 
+}> => {
   try {
     const jugadoresInscritos = collection(db, "jugadores");
     const q = query(jugadoresInscritos, where("dni", "==", dni));
@@ -37,7 +42,9 @@ export const accederTorneo = async (nombre: string, correo: string, dni: string)
     const qCarreras = query(carrerasRef, where("fase", "==", "clasificatoria"));
     const snapshotCarreras = await getDocs(qCarreras);
 
-    let carreras = snapshotCarreras.docs.map(c => ({ id: c.id, ...c.data() as any }));
+    let carreras = snapshotCarreras.docs
+    .map(c => ({ id: c.id, ...c.data() as any }))
+    .filter(c => c.estado !== "finalizada");
     carreras.sort((a, b) => a.numero - b.numero);
 
     const TAMANO_BLOQUE = 4; // Bloques de 4 carreras (32 personas)
@@ -68,7 +75,13 @@ export const accederTorneo = async (nombre: string, correo: string, dni: string)
           const carreraDoc = await transaction.get(carreraRef);
           if (!carreraDoc.exists()) throw new Error("Carrera no existe");
 
-          const participantesActuales = carreraDoc.data().participantes || [];
+          const datosCarrera = carreraDoc.data();  // ✅ Obtener los datos
+          const participantesActuales = datosCarrera.participantes || [];
+
+          // Verificar si se finalizó mientras tanto
+          if (datosCarrera.estado === "finalizada") {
+            throw new Error("Carrera ya finalizada");
+          }
 
           // Comprobación ESTRICTA en tiempo real
           if (participantesActuales.length < 8) {
@@ -87,7 +100,15 @@ export const accederTorneo = async (nombre: string, correo: string, dni: string)
       }
     }
 
-    return { id: docRef.id, esNuevo: true };
+    // 🆕 Devolver con info de la carrera asignada
+    return { 
+      id: docRef.id, 
+      esNuevo: true,
+      carreraAsignada: carreraAsignada ? {
+        nombre: carreraAsignada.nombre_carrera,
+        numero: carreraAsignada.numero
+      } : undefined
+    };
 
   } catch (error) {
     console.error("Error en accederTorneo:", error);

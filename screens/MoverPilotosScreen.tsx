@@ -21,7 +21,6 @@ export default function MoverPilotosScreen() {
       const carrerasSnap = await getDocs(collection(db, "carreras"));
       const listaCarreras = carrerasSnap.docs
         .map(d => ({ id: d.id, ...d.data() as any }))
-        .filter(c => c.estado === "pendiente") // Solo movemos en carreras que no han empezado
         .sort((a, b) => a.numero - b.numero);
       
       setCarreras(listaCarreras);

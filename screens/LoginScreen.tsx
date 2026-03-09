@@ -3,6 +3,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useState } from "react";
 import { Alert, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { accederTorneo } from "../services/authService";
+import { Colors, Fonts } from "../types/theme";
 
 export default function LoginScreen() {
   const navigation = useNavigation<any>();
@@ -41,6 +42,24 @@ export default function LoginScreen() {
     }
 
     if (resultado.id) {
+      // 🆕 CONFIRMACIÓN VISUAL SI ES NUEVO
+      if (resultado.esNuevo && resultado.carreraAsignada) {
+        const mensaje = `🏁 ¡BIENVENIDO AL PADDOCK!\n\n` +
+                        `Piloto: ${nombre.toUpperCase()}\n` +
+                        `Carrera: ${resultado.carreraAsignada.nombre}\n` +
+                        `Número: ${resultado.carreraAsignada.numero}\n\n` +
+                        `Tu slot está reservado. ¡Nos vemos en pista!`;
+        
+        if (Platform.OS === "web") {
+          window.alert(mensaje);
+        } else {
+          Alert.alert("✅ REGISTRO CONFIRMADO", mensaje, [
+            { text: "IR A MI PADDOCK", onPress: () => navigation.replace("HomeScreen", { jugadorId: resultado.id }) }
+          ]);
+          return;
+        }
+      }
+      
       navigation.replace("HomeScreen", { jugadorId: resultado.id });
     } else {
       if (Platform.OS === "web") {
@@ -137,20 +156,100 @@ export default function LoginScreen() {
   );
 }
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0a0a0a", justifyContent: "center", padding: 20 },
-  card: { backgroundColor: "#151515", padding: 30, borderRadius: 4, borderWidth: 1, borderColor: "#222", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.8, shadowRadius: 10, elevation: 10 },
-  header: { alignItems: "center", marginBottom: 20, borderBottomWidth: 2, borderBottomColor: "#e63946", paddingBottom: 15 },
-  titulo: { fontSize: 32, fontWeight: "900", color: "#ffd700", fontStyle: "italic", letterSpacing: 2 },
-  subtitulo: { fontSize: 16, color: "#fff", fontWeight: "bold", letterSpacing: 5, marginTop: 5 },
-  instrucciones: { color: "#666", textAlign: "center", marginBottom: 25, fontSize: 12, letterSpacing: 1 },
-  form: { marginBottom: 25 },
-  label: { color: "#ffd700", fontSize: 10, fontWeight: "bold", marginBottom: 5, letterSpacing: 2 },
-  input: { backgroundColor: "#0f0f0f", color: "#fff", borderWidth: 1, borderColor: "#333", padding: 15, marginBottom: 15, borderRadius: 2, fontSize: 14, fontWeight: 'bold' },
+  container: { 
+    flex: 1, 
+    backgroundColor: Colors.background, 
+    justifyContent: "center", 
+    padding: 20 
+  },
   
-  // Botón Rojo (Entrar)
-  boton: { backgroundColor: "#e63946", paddingVertical: 18, borderRadius: 2, alignItems: "center" },
-  botonDesactivado: { backgroundColor: "#882229" },
-  textoBoton: { color: "#fff", fontSize: 16, fontWeight: "900", letterSpacing: 2 },
+  card: { 
+    backgroundColor: Colors.surface, 
+    padding: 30, 
+    borderRadius: 4, 
+    borderWidth: 1, 
+    borderColor: Colors.border, // 🔮 Borde morado Kaizō
+    shadowColor: Colors.primary, // 🔮 Sombra morada
+    shadowOffset: { width: 0, height: 10 }, 
+    shadowOpacity: 0.3, 
+    shadowRadius: 10, 
+    elevation: 10 
+  },
+  
+  header: { 
+    alignItems: "center", 
+    marginBottom: 20, 
+    borderBottomWidth: 2, 
+    borderBottomColor: Colors.primary, // 🔮 Línea morada
+    paddingBottom: 15 
+  },
+  
+  titulo: { 
+    fontSize: 32, 
+    fontWeight: "900", 
+    color: Colors.gold, 
+    fontFamily: Fonts.title, // 🎯 AWESOME SUNDAY
+    fontStyle: "italic", 
+    letterSpacing: 2 
+  },
+  
+  subtitulo: { 
+    fontSize: 16, 
+    color: Colors.textPrimary, 
+    fontWeight: "bold", 
+    letterSpacing: 5, 
+    marginTop: 5 
+  },
+  
+  instrucciones: { 
+    color: Colors.textMuted, 
+    textAlign: "center", 
+    marginBottom: 25, 
+    fontSize: 12, 
+    letterSpacing: 1 
+  },
+  
+  form: { marginBottom: 25 },
+  
+  label: { 
+    color: Colors.primary, // 🔮 Morado para labels
+    fontSize: 10, 
+    fontWeight: "bold", 
+    marginBottom: 5, 
+    letterSpacing: 2 
+  },
+  
+  input: { 
+    backgroundColor: Colors.background, 
+    color: Colors.textPrimary, 
+    borderWidth: 1, 
+    borderColor: Colors.card, 
+    padding: 15, 
+    marginBottom: 15, 
+    borderRadius: 2, 
+    fontSize: 14, 
+    fontWeight: 'bold' 
+  },
+  
+  // 🔮 Botón Morado Kaizō (antes era rojo)
+  boton: { 
+    backgroundColor: Colors.primary, 
+    paddingVertical: 18, 
+    borderRadius: 2, 
+    alignItems: "center" 
+  },
+  
+  botonDesactivado: { 
+    backgroundColor: Colors.primaryDark, 
+    opacity: 0.6
+  },
+  
+  textoBoton: { 
+    color: "#fff", 
+    fontSize: 16, 
+    fontWeight: "900", 
+    letterSpacing: 2 
+  },
 
   // Botón Verde (WhatsApp) - AJUSTADO
   botonWhatsapp: {
@@ -179,7 +278,7 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   linkTexto: {
-    color: '#888',
+    color: Colors.textSecondary,
     fontSize: 13,
     textDecorationLine: 'underline',
   }

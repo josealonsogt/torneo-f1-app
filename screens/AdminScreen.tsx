@@ -52,7 +52,7 @@ export default function AdminScreen() {
     try {
       const batch = writeBatch(db);
       
-      // Buscar y destruir las carreras de Semifinales A y B
+      // Buscar y destruir carreras
       const qA = query(collection(db, "carreras"), where("fase", "==", "semifinal_a"));
       const qB = query(collection(db, "carreras"), where("fase", "==", "semifinal_b"));
       const [snapA, snapB] = await Promise.all([getDocs(qA), getDocs(qB)]);
@@ -60,16 +60,21 @@ export default function AdminScreen() {
       snapA.forEach(d => batch.delete(d.ref));
       snapB.forEach(d => batch.delete(d.ref));
       
-      // Volver el reloj a fase clasificatoria
+      // 🆕 RESETEAR estados de jugadores
+      const qJugA = query(collection(db, "jugadores"), where("estado_torneo", "==", "clasificado_semi_a"));
+      const qJugB = query(collection(db, "jugadores"), where("estado_torneo", "==", "clasificado_semi_b"));
+      const [snapJugA, snapJugB] = await Promise.all([getDocs(qJugA), getDocs(qJugB)]);
+      
+      // NO los volvemos a "inscrito", los dejamos clasificados
+      // Solo queremos que regenerar semis los vuelva a incluir
+      // En realidad, no necesitas cambiarles nada si generarSemis busca por estado
+      
       batch.update(doc(db, "configuracion", "torneo"), { fase_actual: "clasificatoria" });
       
       await batch.commit();
-      if (Platform.OS === "web") window.alert("⏪ Marcha Atrás\nSemifinales borradas. Volvemos a Clasificatorias.");
-      else Alert.alert("⏪ Marcha Atrás", "Semifinales borradas. Volvemos a Clasificatorias.");
+      Alert.alert("⏪ Marcha Atrás", "Semifinales borradas. Los clasificados siguen en espera.");
     } catch (error) {
       console.error(error);
-      if (Platform.OS === "web") window.alert("Error al deshacer semis.");
-      else Alert.alert("Error", "No se pudieron deshacer las semifinales.");
     }
     setCargando(false);
   };

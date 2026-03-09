@@ -79,6 +79,14 @@ export const obtenerCarreraDeJugador = async (jugadorId: string): Promise<any | 
 
 export const generarSemifinalesA = async (): Promise<boolean> => {
   try {
+    // 🆕 Verificar si ya existen
+    const qExistentes = query(collection(db, "carreras"), where("fase", "==", "semifinal_a"));
+    const existentes = await getDocs(qExistentes);
+    if (!existentes.empty) {
+      console.warn("Las Semis A ya existen. Usa 'Deshacer Semis' primero.");
+      return false;
+    }
+    
     // 🔥 MAGIA ELÁSTICA: Nos da igual cuántas carreras se jugaron. 
     // Solo buscamos quién tiene el billete para la Semi A.
     const q = query(collection(db, "jugadores"), where("estado_torneo", "==", "clasificado_semi_a"));
@@ -132,6 +140,14 @@ export const generarSemifinalesA = async (): Promise<boolean> => {
 
 export const generarSemifinalesB = async (): Promise<boolean> => {
   try {
+    // 🆕 Verificar si ya existen
+    const qExistentes = query(collection(db, "carreras"), where("fase", "==", "semifinal_b"));
+    const existentes = await getDocs(qExistentes);
+    if (!existentes.empty) {
+      console.warn("Las Semis B ya existen. Usa 'Deshacer Semis' primero.");
+      return false;
+    }
+    
     const q = query(collection(db, "jugadores"), where("estado_torneo", "==", "clasificado_semi_b"));
     const snapshot = await getDocs(q);
     const clasificados = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
@@ -178,6 +194,14 @@ export const generarSemifinalesB = async (): Promise<boolean> => {
 
 export const generarFinalB = async (): Promise<boolean> => {
   try {
+    // 🆕 Check anti-duplicado
+    const qExistentes = query(collection(db, "carreras"), where("fase", "==", "final_b"));
+    const existentes = await getDocs(qExistentes);
+    if (!existentes.empty) {
+      console.warn("La Final B ya existe.");
+      return false;
+    }
+
     const q = query(collection(db, "jugadores"), where("estado_torneo", "==", "clasificado_final_b"));
     const snapshot = await getDocs(q);
     const clasificados = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
@@ -212,6 +236,14 @@ export const generarFinalB = async (): Promise<boolean> => {
 
 export const generarFinal = async (): Promise<boolean> => {
   try {
+    // 🆕 Check anti-duplicado
+    const qExistentes = query(collection(db, "carreras"), where("fase", "==", "final"));
+    const existentes = await getDocs(qExistentes);
+    if (!existentes.empty) {
+      console.warn("La Gran Final ya existe.");
+      return false;
+    }
+
     const q = query(collection(db, "jugadores"), where("estado_torneo", "==", "finalista"));
     const snapshot = await getDocs(q);
     const clasificados = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));

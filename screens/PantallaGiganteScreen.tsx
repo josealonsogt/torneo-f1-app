@@ -112,8 +112,15 @@ export default function PantallaGiganteScreen() {
               .sort((a, b) => a.posicion - b.posicion)
               .map(p => (
                 <View key={p.jugador_id} style={[...getEstiloPiloto(carrera.fase, p.posicion), { paddingVertical: esCompacta ? 2 : (esGranFinal ? 6 : 4) }]}>
-                  <Text style={[styles.textoPilotoNombre, { fontSize: sizePiloto }]} numberOfLines={1}>
-                    <Text style={{fontWeight: '900', color: p.posicion === 1 && esGranFinal ? '#ffd700' : '#fff'}}>P{p.posicion}</Text>  {p.nombre.toUpperCase()}
+                  <Text 
+                    style={[styles.textoPilotoNombre, { fontSize: sizePiloto }]} 
+                    numberOfLines={esCompacta ? 1 : 2}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.6}
+                  >
+                    <Text style={{fontWeight: '900', color: p.posicion === 1 && esGranFinal ? '#ffd700' : '#fff'}}>
+                      P{p.posicion}
+                    </Text>{"  "}{p.nombre.toUpperCase()}
                   </Text>
                 </View>
               ))}
