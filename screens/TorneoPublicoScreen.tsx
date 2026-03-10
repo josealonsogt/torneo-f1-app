@@ -1,7 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from "@react-navigation/native";
+import { LinearGradient } from 'expo-linear-gradient';
 import { collection, onSnapshot } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useLayoutEffect, useState } from "react";
+import { ActivityIndicator, Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { db } from "../services/firebaseConfig";
 import { Carrera } from "../types/entities";
 
@@ -10,6 +12,13 @@ export default function TorneoPublicoScreen() {
   const [carreras, setCarreras] = useState<(Carrera & { id: string })[]>([]);
   const [cargando, setCargando] = useState(true);
   const [faseSeleccionada, setFaseSeleccionada] = useState("clasificatoria");
+
+  // 🚫 ESTO ELIMINA LA BARRA BLANCA SUPERIOR DE "INICIO"
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
 
   useEffect(() => {
     const carrerasRef = collection(db, "carreras");
@@ -28,10 +37,10 @@ export default function TorneoPublicoScreen() {
 
   if (cargando) {
     return (
-      <View style={[styles.container, styles.centrado]}>
-        <ActivityIndicator size="large" color="#e63946" />
+      <LinearGradient colors={['#050814', '#170c2b', '#481f5c']} style={[styles.container, styles.centrado]}>
+        <ActivityIndicator size="large" color="#8b48ba" />
         <Text style={styles.textoCargando}>SINCRONIZANDO TELEMETRÍA...</Text>
-      </View>
+      </LinearGradient>
     );
   }
 
@@ -56,132 +65,268 @@ export default function TorneoPublicoScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.botonVolver} onPress={() => navigation.goBack()}>
-          <Text style={styles.textoBotonVolver}>◀ VOLVER</Text>
-        </TouchableOpacity>
-        <View style={styles.titulosHeader}>
-          <Text style={styles.titulo}>MATSURI RACING</Text>
-          <Text style={styles.subtitulo}>LIVE TIMING & SCORING</Text>
-        </View>
-        <View style={{ width: 60 }} />
-      </View>
-
-      <View style={styles.menuContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.menuScroll}>
-          {opcionesMenu.map((opcion) => (
-            <TouchableOpacity
-              key={opcion.id}
-              style={[styles.pestana, faseSeleccionada === opcion.id ? styles.pestanaActiva : null]}
-              onPress={() => setFaseSeleccionada(opcion.id)}
-            >
-              <Text style={[styles.textoPestana, faseSeleccionada === opcion.id ? styles.textoPestanaActiva : null]}>
-                {opcion.titulo}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {carrerasMostradas.length === 0 ? (
-          <View style={styles.vacioContainer}>
-            <Text style={styles.vacio}>[ FASE NO GENERADA ]</Text>
-            <Text style={styles.subVacio}>ESPERANDO DATOS DE DIRECCIÓN DE CARRERA</Text>
+    <LinearGradient
+      colors={['#050814', '#170c2b', '#481f5c', '#8a1d34']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
+    >
+      <SafeAreaView style={{flex: 1}}>
+        
+        {/* 👑 HEADER LIMPIO CON LOGO */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.botonVolver} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={24} color="#e1e1e1" />
+            <Text style={styles.textoBotonVolver}>BOX</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.titulosHeader}>
+            <Image 
+              source={require('../assets/Logo Kaizo Sim blanco.png')} 
+              style={styles.logoPequeño}
+              resizeMode="contain"
+            />
+            <Text style={styles.subtitulo}>LIVE TIMING</Text>
           </View>
-        ) : (
-          carrerasMostradas.map((carrera) => (
-            <View key={carrera.id} style={styles.tarjeta}>
-              <View style={styles.cabeceraTarjeta}>
-                <Text style={styles.nombreCarrera}>{carrera.nombre_carrera.toUpperCase()}</Text>
-                {carrera.estado === "en_curso" ? (
-                  <View style={styles.badgeEnCurso}><Text style={styles.textoBadgeEnCurso}>EN PISTA</Text></View>
-                ) : carrera.estado === "finalizada" ? (
-                  <View style={styles.badgeFinalizada}><Text style={styles.textoBadgeFinalizada}>FINALIZADA</Text></View>
-                ) : (
-                  <View style={styles.badgePendiente}><Text style={styles.textoBadgePendiente}>PENDIENTE</Text></View>
-                )}
-              </View>
+          
+          <View style={{ width: 60 }} />
+        </View>
 
-              <View style={styles.infoBar}>
-                <Text style={styles.horaTexto}>HORA: {carrera.hora ? carrera.hora : "No predefinido"}</Text>
-              </View>
+        {/* 🗂️ MENÚ DE FASES (Scroll Horizontal) */}
+        <View style={styles.menuContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.menuScroll}>
+            {opcionesMenu.map((opcion) => (
+              <TouchableOpacity
+                key={opcion.id}
+                style={[styles.pestana, faseSeleccionada === opcion.id ? styles.pestanaActiva : null]}
+                onPress={() => setFaseSeleccionada(opcion.id)}
+              >
+                <Text style={[styles.textoPestana, faseSeleccionada === opcion.id ? styles.textoPestanaActiva : null]}>
+                  {opcion.titulo}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
 
-              <View style={styles.tablaPilotos}>
-                {ordenarParticipantes(carrera.participantes).map((p, index) => {
-                  let colorPosicion = "#666";
-                  let textoPosicion = "-";
-                  
-                  if (p.posicion > 0 && p.posicion !== 99) {
-                    textoPosicion = `P${p.posicion}`;
-                    if (p.posicion === 1) colorPosicion = "#ffd700";
-                    else if (p.posicion === 2) colorPosicion = "#c0c0c0";
-                    else if (p.posicion === 3) colorPosicion = "#cd7f32";
-                    else colorPosicion = "#aaa";
-                  } else if (p.posicion === 99) {
-                    textoPosicion = "DNF";
-                    colorPosicion = "#e63946";
-                  } else {
-                    textoPosicion = `S${index + 1}`;
-                  }
-
-                  return (
-                    // 🛡️ PARCHE CLON: Clave única usando jugador_id + índice para que no crashee
-                    <View key={`${p.jugador_id}-${index}`} style={styles.filaPiloto}>
-                      <Text style={[styles.posicionPiloto, { color: colorPosicion }]}>{textoPosicion}</Text>
-                      <Text style={styles.nombrePiloto} numberOfLines={1}>{p.nombre.toUpperCase()}</Text>
-                      {p.posicion === 99 ? <Text style={styles.etiquetaOut}>OUT</Text> : null}
-                    </View>
-                  );
-                })}
-                {(!carrera.participantes || carrera.participantes.length === 0) ? (
-                  <Text style={styles.textoVacioTabla}>SIN PILOTOS ASIGNADOS</Text>
-                ) : null}
-              </View>
+        {/* 🏁 LISTA DE CARRERAS */}
+        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+          {carrerasMostradas.length === 0 ? (
+            <View style={styles.vacioContainer}>
+              <Ionicons name="timer-outline" size={40} color="#666" style={{marginBottom: 10}}/>
+              <Text style={styles.vacio}>[ FASE NO GENERADA ]</Text>
+              <Text style={styles.subVacio}>Esperando datos de dirección de carrera</Text>
             </View>
-          ))
-        )}
-      </ScrollView>
-    </SafeAreaView>
+          ) : (
+            carrerasMostradas.map((carrera) => (
+              <View key={carrera.id} style={styles.tarjetaCristal}>
+                
+                {/* Cabecera Carrera */}
+                <View style={styles.cabeceraTarjeta}>
+                  <Text style={styles.nombreCarrera}>{carrera.nombre_carrera.toUpperCase()}</Text>
+                  
+                  {carrera.estado === "en_curso" ? (
+                    <View style={styles.badgeEnCurso}>
+                      <View style={styles.puntoRojo} />
+                      <Text style={styles.textoBadgeEnCurso}>EN PISTA</Text>
+                    </View>
+                  ) : carrera.estado === "finalizada" ? (
+                    <Text style={styles.textoBadgeFinalizada}>FINALIZADA</Text>
+                  ) : (
+                    <Text style={styles.textoBadgePendiente}>PENDIENTE</Text>
+                  )}
+                </View>
+
+                {/* Info Bar (Hora) */}
+                <View style={styles.infoBar}>
+                  <Ionicons name="time-outline" size={14} color="#8b48ba" />
+                  <Text style={styles.horaTexto}>{carrera.hora ? carrera.hora : "Por definir"}</Text>
+                </View>
+
+                {/* Tabla de Pilotos */}
+                <View style={styles.tablaPilotos}>
+                  {ordenarParticipantes(carrera.participantes).map((p, index) => {
+                    let colorPosicion = "#00f0ff"; // Cyan por defecto para todos
+                    let textoPosicion = `P${index + 1}`;
+                    let mostrarTrofeo = false;
+                    let esDNF = false;
+                    
+                    if (p.posicion > 0 && p.posicion !== 99) {
+                      textoPosicion = `Pº ${p.posicion}`;
+                      if (p.posicion === 1) { colorPosicion = "#ffd700"; mostrarTrofeo = true; } // Oro
+                      else if (p.posicion === 2) { colorPosicion = "#c0c0c0"; mostrarTrofeo = true; } // Plata
+                      else if (p.posicion === 3) { colorPosicion = "#cd7f32"; } // Bronce
+                    } else if (p.posicion === 99) {
+                      textoPosicion = "DNF";
+                      colorPosicion = "#e63946";
+                      esDNF = true;
+                    }
+
+                    return (
+                      <View key={`${p.jugador_id}-${index}`} style={styles.filaPiloto}>
+                        <View style={styles.cajaPosicion}>
+                          {mostrarTrofeo && <Ionicons name="trophy" size={12} color={colorPosicion} style={{marginRight: 4}}/>}
+                          <Text style={[styles.posicionPiloto, { color: colorPosicion }]}>{textoPosicion}</Text>
+                        </View>
+                        
+                        <Text style={[styles.nombrePiloto, esDNF && {color: '#666', textDecorationLine: 'line-through'}]} numberOfLines={1}>
+                          {p.nombre.toUpperCase()}
+                        </Text>
+                        
+                        {esDNF ? <View style={styles.badgeDNF}><Text style={styles.textoDNF}>OUT</Text></View> : null}
+                      </View>
+                    );
+                  })}
+                  {(!carrera.participantes || carrera.participantes.length === 0) ? (
+                    <Text style={styles.textoVacioTabla}>SIN PILOTOS ASIGNADOS</Text>
+                  ) : null}
+                </View>
+
+              </View>
+            ))
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0a0a0a" },
+  container: { flex: 1 },
   centrado: { justifyContent: "center", alignItems: "center" },
-  textoCargando: { color: "#e63946", marginTop: 15, fontWeight: "bold", letterSpacing: 2, fontSize: 12 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#111', paddingHorizontal: 15, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#333' },
-  botonVolver: { paddingVertical: 5, paddingRight: 15 },
-  textoBotonVolver: { color: "#e63946", fontWeight: "900", fontSize: 12, letterSpacing: 1 },
+  textoCargando: { color: "#fff", marginTop: 15, fontWeight: "bold", letterSpacing: 2, fontSize: 12 },
+  
+  // HEADER
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 15, 
+    paddingTop: 15, // Ajuste para el notch
+    paddingBottom: 15,
+  },
+  botonVolver: { 
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5, 
+    width: 80 
+  },
+  textoBotonVolver: { color: "#e1e1e1", fontWeight: "bold", fontSize: 12, letterSpacing: 1 },
   titulosHeader: { alignItems: 'center' },
-  titulo: { fontSize: 20, fontWeight: "900", color: "#fff", fontStyle: "italic", letterSpacing: 3 },
-  subtitulo: { fontSize: 10, color: "#e63946", fontWeight: "bold", letterSpacing: 4, marginTop: 2 },
-  menuContainer: { backgroundColor: '#111', borderBottomWidth: 2, borderBottomColor: '#222' },
-  menuScroll: { paddingHorizontal: 10, paddingVertical: 12 },
-  pestana: { paddingHorizontal: 15, paddingVertical: 6, marginRight: 15, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  pestanaActiva: { borderBottomColor: '#e63946' },
-  textoPestana: { color: '#666', fontSize: 12, fontWeight: 'bold', letterSpacing: 1 },
+  logoPequeño: { width: 100, height: 25, marginBottom: 2 },
+  subtitulo: { fontSize: 10, color: "#00f0ff", fontWeight: "bold", letterSpacing: 4 },
+  
+  // MENÚ DE FASES
+  menuContainer: { 
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', 
+    borderBottomWidth: 1, 
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)' 
+  },
+  menuScroll: { paddingHorizontal: 10, paddingVertical: 10 },
+  pestana: { 
+    paddingHorizontal: 15, 
+    paddingVertical: 8, 
+    marginRight: 10, 
+    borderRadius: 20, // Forma de pastilla
+    backgroundColor: 'rgba(255, 255, 255, 0.05)'
+  },
+  pestanaActiva: { 
+    backgroundColor: 'rgba(104, 53, 140, 0.4)', // Fondo morado Kaizō
+    borderWidth: 1,
+    borderColor: '#8b48ba'
+  },
+  textoPestana: { color: '#888', fontSize: 11, fontWeight: 'bold', letterSpacing: 1 },
   textoPestanaActiva: { color: '#fff' },
-  scrollContainer: { padding: 15, paddingBottom: 40 },
-  vacioContainer: { alignItems: 'center', marginTop: 80, padding: 30, borderWidth: 1, borderColor: '#222', backgroundColor: '#111', borderStyle: 'dashed' },
-  vacio: { fontSize: 16, fontWeight: 'bold', color: "#555", textAlign: "center", letterSpacing: 2, marginBottom: 5 },
-  subVacio: { fontSize: 10, color: "#444", textAlign: "center", letterSpacing: 1 },
-  tarjeta: { backgroundColor: "#151515", borderRadius: 4, marginBottom: 20, borderWidth: 1, borderColor: "#222", overflow: 'hidden' },
-  cabeceraTarjeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 15, backgroundColor: '#1a1a1a', borderBottomWidth: 1, borderBottomColor: '#222' },
+  
+  // SCROLL DE CARRERAS
+  scrollContainer: { padding: 15, paddingBottom: 60 },
+  vacioContainer: { 
+    alignItems: 'center', 
+    marginTop: 80, 
+    padding: 40, 
+    borderRadius: 12,
+    borderWidth: 1, 
+    borderColor: 'rgba(255, 255, 255, 0.1)', 
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+    borderStyle: 'dashed' 
+  },
+  vacio: { fontSize: 16, fontWeight: 'bold', color: "#888", textAlign: "center", letterSpacing: 2, marginBottom: 5 },
+  subVacio: { fontSize: 12, color: "#555", textAlign: "center", letterSpacing: 1 },
+  
+  // TARJETAS CRISTAL (GLASSMORPHISM)
+  tarjetaCristal: {
+    backgroundColor: 'rgba(12, 12, 15, 0.8)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: 20,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  cabeceraTarjeta: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "center", 
+    padding: 15, 
+    backgroundColor: 'rgba(255, 255, 255, 0.03)', 
+    borderBottomWidth: 1, 
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)' 
+  },
   nombreCarrera: { fontSize: 16, fontWeight: "900", color: "#fff", letterSpacing: 1 },
-  badgeEnCurso: { backgroundColor: 'rgba(230, 57, 70, 0.1)', borderWidth: 1, borderColor: '#e63946', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 2 },
+  
+  // BADGES ESTADO
+  badgeEnCurso: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: 'rgba(230, 57, 70, 0.2)', 
+    paddingHorizontal: 8, 
+    paddingVertical: 4, 
+    borderRadius: 4, 
+    borderWidth: 1, 
+    borderColor: '#e63946', 
+    gap: 5 
+  },
+  puntoRojo: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
   textoBadgeEnCurso: { color: '#e63946', fontWeight: '900', fontSize: 10, letterSpacing: 1 },
-  badgeFinalizada: { backgroundColor: 'rgba(42, 157, 143, 0.1)', borderWidth: 1, borderColor: '#2a9d8f', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 2 },
-  textoBadgeFinalizada: { color: '#2a9d8f', fontWeight: '900', fontSize: 10, letterSpacing: 1 },
-  badgePendiente: { backgroundColor: '#222', borderWidth: 1, borderColor: '#444', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 2 },
-  textoBadgePendiente: { color: '#888', fontWeight: '900', fontSize: 10, letterSpacing: 1 },
-  infoBar: { backgroundColor: '#111', paddingHorizontal: 15, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#222' },
-  horaTexto: { color: '#ffd700', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
+  textoBadgeFinalizada: { color: '#8b48ba', fontWeight: 'bold', fontSize: 11, letterSpacing: 1 },
+  textoBadgePendiente: { color: '#666', fontWeight: 'bold', fontSize: 11, letterSpacing: 1 },
+  
+  // INFO BAR
+  infoBar: { 
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', 
+    paddingHorizontal: 15, 
+    paddingVertical: 8, 
+    borderBottomWidth: 1, 
+    borderBottomColor: 'rgba(255, 255, 255, 0.02)' 
+  },
+  horaTexto: { color: '#8b48ba', fontSize: 11, fontWeight: 'bold', letterSpacing: 1 },
+  
+  // TABLA DE PILOTOS
   tablaPilotos: { padding: 10 },
-  filaPiloto: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 5, borderBottomWidth: 1, borderBottomColor: "#1a1a1a" },
-  posicionPiloto: { width: 40, fontSize: 14, fontWeight: "900", textAlign: 'center', letterSpacing: 1 },
-  nombrePiloto: { flex: 1, color: "#ddd", fontSize: 14, fontWeight: "bold", marginLeft: 10, letterSpacing: 0.5 },
-  etiquetaOut: { color: '#e63946', fontSize: 10, fontWeight: '900', letterSpacing: 1, backgroundColor: '#222', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 2 },
-  textoVacioTabla: { color: "#444", fontSize: 12, textAlign: "center", paddingVertical: 15, fontWeight: 'bold', letterSpacing: 1 },
+  filaPiloto: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    paddingVertical: 12, 
+    paddingHorizontal: 10, 
+    borderBottomWidth: 1, 
+    borderBottomColor: "rgba(255, 255, 255, 0.03)" 
+  },
+  cajaPosicion: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 65, // Espacio fijo para que los nombres queden alineados
+  },
+  posicionPiloto: { fontSize: 14, fontWeight: "900", letterSpacing: 1 },
+  nombrePiloto: { flex: 1, color: "#e1e1e1", fontSize: 14, fontWeight: "bold", marginLeft: 5, letterSpacing: 0.5 },
+  
+  badgeDNF: { backgroundColor: '#e63946', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  textoDNF: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+  textoVacioTabla: { color: "#666", fontSize: 12, textAlign: "center", paddingVertical: 20, fontWeight: 'bold', letterSpacing: 1 },
 });
