@@ -272,17 +272,31 @@ const styles = StyleSheet.create({
     borderLeftColor: '#68358c', // Borde morado sutil
   },
   
+  // 🕹️ BOTONES MINIMALISTAS TIPO PASTILLA
   botonMinimalista: { 
-    backgroundColor: 'transparent', 
+    backgroundColor: 'transparent', // El degradado va dentro, el botón es transparente
     borderRadius: 30, 
     alignItems: "center",
     marginBottom: 10,
     overflow: 'hidden', 
-    shadowColor: "#e63946",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 5
+    
+    
+    ...Platform.select({
+      web: {
+        // En web quitamos las sombras por completo para evitar el glow morado feo
+        shadowColor: 'transparent',
+        shadowOpacity: 0,
+        elevation: 0,
+      },
+      default: {
+        // En móvil (nativo) dejamos la sombra morada sutil que sí funciona bien
+        shadowColor: "#8b48ba", // Sombra morado Kaizō
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3, // Menos opacidad para que sea elegante
+        shadowRadius: 8,   // Un radio de difusión moderado
+        elevation: 5,       // Para Android nativo
+      }
+    }),
   },
   linearGradientBoton: {
     width: '100%',
