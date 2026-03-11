@@ -1,14 +1,15 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
-import AdminScreen from "../screens/AdminScreen";
-import GestionCarrerasScreen from "../screens/GestionCarrerasScreen";
-import GestionPilotosScreen from "../screens/GestionPilotosScreen";
-import HomeScreen from "../screens/HomeScreen";
-import LoginScreen from "../screens/LoginScreen";
-import MoverPilotosScreen from '../screens/MoverPilotosScreen';
-import PantallaGiganteScreen from "../screens/PantallaGiganteScreen";
-import PantallaGrandeDesktopScreen from "../screens/PantallaGrandeDesktopScreen";
-import TorneoPublicoScreen from '../screens/TorneoPublicoScreen';
+import AdminScreen from "../screens/admin/AdminScreen";
+import GestionCarrerasScreen from "../screens/admin/GestionCarrerasScreen";
+import GestionPilotosScreen from "../screens/admin/GestionPilotosScreen";
+import LogsScreen from "../screens/admin/LogsScreen";
+import MoverPilotosScreen from '../screens/admin/MoverPilotosScreen';
+import PantallaGrandeDesktopScreen from "../screens/admin/PantallaGrandeDesktopScreen";
+import HomeScreen from "../screens/usuarios/HomeScreen";
+import LoginScreen from "../screens/usuarios/LoginScreen";
+import PantallaGiganteScreen from "../screens/usuarios/PantallaGiganteScreen";
+import TorneoPublicoScreen from '../screens/usuarios/TorneoPublicoScreen';
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
@@ -23,6 +24,7 @@ export default function AppNavigator() {
       <Stack.Screen name="PantallaGrandeDesktopScreen" component={PantallaGrandeDesktopScreen} options={{ headerShown: false }} />
       <Stack.Screen name="GestionPilotosScreen" component={GestionPilotosScreen} options={{ title: "Control de Pilotos" }} />
       <Stack.Screen name="MoverPilotosScreen" component={MoverPilotosScreen} />
+      <Stack.Screen name="LogsScreen" component={LogsScreen} options={{ title: "Logs de Auditoría" }} />
     </Stack.Navigator>
   );
 }

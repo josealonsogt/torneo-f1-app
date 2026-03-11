@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
-import { collection, doc, getDocs, query, where, writeBatch } from "firebase/firestore";
-import React, { useState } from "react";
+import { collection, doc, getDocs, onSnapshot, query, where, writeBatch } from "firebase/firestore";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -15,8 +15,9 @@ import {
   generarPilotosPrueba,
   limpiarCarreras,
   limpiarJugadores
-} from "../services/adminService";
-import { db } from "../services/firebaseConfig"; // <-- Importamos db para el seguro
+} from "../../services/adminService";
+import { db } from "../../services/firebaseConfig";
+import { registrarLog } from "../../services/logService";
 import {
   abrirInscripciones,
   generarFinal,
@@ -24,11 +25,55 @@ import {
   generarSemifinalesA,
   generarSemifinalesB,
   setEstadoInscripciones
-} from "../services/torneoService";
+} from "../../services/torneoService";
 
 export default function AdminScreen() {
   const navigation = useNavigation<any>();
   const [cargando, setCargando] = useState(false);
+  
+  // 📊 ESTADOS DEL DASHBOARD
+  const [puertaAbierta, setPuertaAbierta] = useState<boolean | null>(null);
+  const [totalPilotos, setTotalPilotos] = useState(0);
+  const [plazasOcupadas, setPlazasOcupadas] = useState(0);
+
+  // 🔊 ESCUCHAR EN TIEMPO REAL EL ESTADO DE LA PUERTA Y ESTADÍSTICAS
+  useEffect(() => {
+    // 1. Escuchar la configuración (puerta abierta/cerrada)
+    const configRef = doc(db, "configuracion", "torneo");
+    const unsubscribeConfig = onSnapshot(configRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setPuertaAbierta(data.inscripciones_abiertas ?? null);
+      }
+    });
+
+    // 2. Escuchar el total de pilotos registrados
+    const jugadoresRef = collection(db, "jugadores");
+    const unsubscribeJugadores = onSnapshot(jugadoresRef, (snapshot) => {
+      setTotalPilotos(snapshot.size);
+    });
+
+    // 3. Escuchar las carreras para contar plazas ocupadas
+    const carrerasRef = collection(db, "carreras");
+    const qCarreras = query(carrerasRef, where("fase", "==", "clasificatoria"));
+    const unsubscribeCarreras = onSnapshot(qCarreras, (snapshot) => {
+      let totalEnCarreras = 0;
+      snapshot.forEach(carreraDoc => {
+        const carrera = carreraDoc.data();
+        if (carrera.participantes) {
+          totalEnCarreras += carrera.participantes.length;
+        }
+      });
+      setPlazasOcupadas(totalEnCarreras);
+    });
+
+    // Limpiar listeners al salir
+    return () => {
+      unsubscribeConfig();
+      unsubscribeJugadores();
+      unsubscribeCarreras();
+    };
+  }, []);
 
   // --- 🛡️ SEGURO ANTI-ACCIDENTES ---
   const verificarClasificatoriasTerminadas = async () => {
@@ -61,18 +106,13 @@ export default function AdminScreen() {
       snapB.forEach(d => batch.delete(d.ref));
       
       // 🆕 RESETEAR estados de jugadores
-      const qJugA = query(collection(db, "jugadores"), where("estado_torneo", "==", "clasificado_semi_a"));
-      const qJugB = query(collection(db, "jugadores"), where("estado_torneo", "==", "clasificado_semi_b"));
-      const [snapJugA, snapJugB] = await Promise.all([getDocs(qJugA), getDocs(qJugB)]);
-      
       // NO los volvemos a "inscrito", los dejamos clasificados
       // Solo queremos que regenerar semis los vuelva a incluir
-      // En realidad, no necesitas cambiarles nada si generarSemis busca por estado
       
       batch.update(doc(db, "configuracion", "torneo"), { fase_actual: "clasificatoria" });
       
       await batch.commit();
-      Alert.alert("⏪ Marcha Atrás", "Semifinales borradas. Los clasificados siguen en espera.");
+      Alert.alert("✅ SEMIFINALES REVERTIDAS", "Las semifinales han sido borradas correctamente. Los pilotos clasificados siguen en espera para la próxima generación.");
     } catch (error) {
       console.error(error);
     }
@@ -80,7 +120,7 @@ export default function AdminScreen() {
   };
 
   const handleDeshacerSemis = () => {
-    const msj = "¿Te has equivocado al generar las semis?\n\nEsto borrará las semifinales actuales para que puedas terminar las clasificatorias que te faltaban y volver a darle al botón.";
+    const msj = "¿Estás seguro de que quieres revertir la generación de semifinales?\n\nEsto borrará todas las semifinales actuales pero mantendrá a los clasificados en lista de espera. Podrás regenerarlas cuando termines las clasificatorias pendientes.\n\nEsta acción no afecta a los datos de los pilotos.";
     if (Platform.OS === "web") {
       if (window.confirm("⚠️ Deshacer Semifinales\n" + msj)) ejecutarDeshacerSemis();
     } else {
@@ -93,10 +133,20 @@ export default function AdminScreen() {
 
   // --- FUNCIONES DE LÓGICA ---
   const handleGenerarPilotosPrueba = async () => { /* ... (igual que antes) ... */ setCargando(true); await generarPilotosPrueba(); setCargando(false); };
-  const ejecutarLimpieza = async () => { setCargando(true); await limpiarJugadores(); setCargando(false); };
-  const handleLimpiarBaseDeDatos = async () => { if (Platform.OS === "web") { if(window.confirm("⚠️ Borrar Todo")) ejecutarLimpieza(); } else { Alert.alert("⚠️ Borrar Todo", "Seguro?", [{ text: "Cancelar" }, { text: "Sí", onPress: ejecutarLimpieza }]); } };
-  const ejecutarLimpiezaCarreras = async () => { setCargando(true); await limpiarCarreras(); setCargando(false); };
-  const handleLimpiarCarreras = async () => { if (Platform.OS === "web") { if(window.confirm("☢️ Borrar Carreras")) ejecutarLimpiezaCarreras(); } else { Alert.alert("☢️ Borrar Carreras", "Seguro?", [{ text: "Cancelar" }, { text: "Sí", onPress: ejecutarLimpiezaCarreras }]); } };
+  const ejecutarLimpieza = async () => { 
+    setCargando(true); 
+    await limpiarJugadores(); 
+    await registrarLog("admin@torneo.com", "ELIMINAR_TODOS_JUGADORES", "Se eliminaron todos los jugadores del torneo");
+    setCargando(false); 
+  };
+  const handleLimpiarBaseDeDatos = async () => { if (Platform.OS === "web") { if(window.confirm("☢️ ELIMINAR TODOS LOS JUGADORES\n\n¿Estás COMPLETAMENTE seguro?\n\nEsto borrará PERMANENTEMENTE todos los pilotos registrados de la base de datos. Las carreras se mantendrán pero quedarán vacías.\n\n⚠️ ESTA ACCIÓN NO SE PUEDE DESHACER ⚠️")) ejecutarLimpieza(); } else { Alert.alert("☢️ ELIMINAR TODOS LOS JUGADORES", "¿Estás COMPLETAMENTE seguro?\n\nEsto borrará PERMANENTEMENTE todos los pilotos registrados de la base de datos.\n\n⚠️ ESTA ACCIÓN NO SE PUEDE DESHACER ⚠️", [{ text: "Cancelar" }, { text: "Sí", onPress: ejecutarLimpieza }]); } };
+  const ejecutarLimpiezaCarreras = async () => { 
+    setCargando(true); 
+    await limpiarCarreras(); 
+    await registrarLog("admin@torneo.com", "ELIMINAR_TODAS_CARRERAS", "Se eliminaron todas las carreras del torneo");
+    setCargando(false); 
+  };
+  const handleLimpiarCarreras = async () => { if (Platform.OS === "web") { if(window.confirm("☢️ ELIMINAR TODAS LAS CARRERAS\n\n¿Estás COMPLETAMENTE seguro?\n\nEsto borrará PERMANENTEMENTE todas las carreras del torneo. Los pilotos seguirán registrados pero quedarán sin carrera asignada.\n\n⚠️ ESTA ACCIÓN NO SE PUEDE DESHACER ⚠️")) ejecutarLimpiezaCarreras(); } else { Alert.alert("☢️ ELIMINAR TODAS LAS CARRERAS", "¿Estás COMPLETAMENTE seguro?\n\nEsto borrará PERMANENTEMENTE todas las carreras del torneo.\n\n⚠️ ESTA ACCIÓN NO SE PUEDE DESHACER ⚠️", [{ text: "Cancelar" }, { text: "Sí", onPress: ejecutarLimpiezaCarreras }]); } };
   const handleAbrirInscripciones = async () => { setCargando(true); await abrirInscripciones(); setCargando(false); };
   const handleCerrarPuerta = async () => { setCargando(true); await setEstadoInscripciones(false); setCargando(false); };
   const handleAbrirPuerta = async () => { setCargando(true); await setEstadoInscripciones(true); setCargando(false); };
@@ -106,20 +156,21 @@ export default function AdminScreen() {
     const todoListo = await verificarClasificatoriasTerminadas();
     if (!todoListo) {
       setCargando(false);
-      const msjError = "Aún quedan Clasificatorias pendientes por terminar o con pilotos dentro. Termínalas primero antes de arrancar el autobús.";
-      if (Platform.OS === "web") window.alert("🛑 ALTO AHÍ\n" + msjError);
-      else Alert.alert("🛑 ALTO AHÍ", msjError);
+      const msjError = "No se pueden generar semifinales todavía.\n\nMotivo: Hay clasificatorias pendientes de finalizar o con pilotos sin posición asignada.\n\nPor favor:\n1. Ve a 'Gestionar Carreras'\n2. Finaliza todas las clasificatorias\n3. Asigna posiciones a todos los pilotos\n4. Vuelve aquí para generar semifinales";
+      if (Platform.OS === "web") window.alert("🛑 CLASIFICATORIAS INCOMPLETAS\n\n" + msjError);
+      else Alert.alert("🛑 CLASIFICATORIAS INCOMPLETAS", msjError);
       return;
     }
 
     const exito = await generarSemifinalesA();
     setCargando(false);
     if (exito) {
-      if (Platform.OS === "web") window.alert("¡Listo! 🏁\nSemifinales A generadas.");
-      else Alert.alert("¡Listo! 🏁", "Semifinales A generadas.");
+      await registrarLog("admin@torneo.com", "GENERAR_SEMIFINALES_A", "Semifinales A (Ganadores) generadas correctamente");
+      if (Platform.OS === "web") window.alert("✅ SEMIFINALES GENERADAS\n\nLas Semifinales A (Ganadores) se han creado correctamente.\n\nSe han distribuido automáticamente todos los pilotos clasificados.");
+      else Alert.alert("✅ SEMIFINALES GENERADAS", "Las Semifinales A (Ganadores) se han creado correctamente.");
     } else {
-      if (Platform.OS === "web") window.alert("❌ Error\nFaltan finalistas.");
-      else Alert.alert("❌ Error", "Faltan finalistas.");
+      if (Platform.OS === "web") window.alert("❌ ERROR AL GENERAR SEMIFINALES\n\nNo hay suficientes clasificados para formar las semifinales.\n\nAsegúrate de que todas las clasificatorias estén finalizadas y las posiciones asignadas.");
+      else Alert.alert("❌ ERROR AL GENERAR SEMIFINALES", "No hay suficientes clasificados. Verifica que las clasificatorias estén finalizadas.");
     }
   };
 
@@ -128,19 +179,19 @@ export default function AdminScreen() {
     const todoListo = await verificarClasificatoriasTerminadas();
     if (!todoListo) {
       setCargando(false);
-      if (Platform.OS === "web") window.alert("🛑 ALTO AHÍ\nTermina todas las clasificatorias primero.");
-      else Alert.alert("🛑 ALTO AHÍ", "Termina todas las clasificatorias primero.");
+      if (Platform.OS === "web") window.alert("🛑 CLASIFICATORIAS INCOMPLETAS\n\nTermina todas las clasificatorias primero.");
+      else Alert.alert("🛑 CLASIFICATORIAS INCOMPLETAS", "Termina todas las clasificatorias primero.");
       return;
     }
 
     const exito = await generarSemifinalesB();
     setCargando(false);
     if (exito) {
-      if (Platform.OS === "web") window.alert("¡Listo! 🏁\nSemifinales B generadas.");
-      else Alert.alert("¡Listo! 🏁", "Semifinales B generadas.");
+      if (Platform.OS === "web") window.alert("✅ SEMIFINALES GENERADAS\n\nLas Semifinales B (Segundos) se han creado correctamente.\n\nSe han distribuido automáticamente todos los pilotos clasificados.");
+      else Alert.alert("✅ SEMIFINALES GENERADAS", "Las Semifinales B (Segundos) se han creado correctamente.");
     } else {
-      if (Platform.OS === "web") window.alert("❌ Error\nFaltan finalistas.");
-      else Alert.alert("❌ Error", "Faltan finalistas.");
+      if (Platform.OS === "web") window.alert("❌ ERROR AL GENERAR SEMIFINALES\n\nNo hay suficientes clasificados para formar las semifinales.");
+      else Alert.alert("❌ ERROR AL GENERAR SEMIFINALES", "No hay suficientes clasificados.");
     }
   };
 
@@ -164,6 +215,27 @@ export default function AdminScreen() {
       <View style={styles.header}>
         <Text style={styles.tituloHeader}>Centro de Mando</Text>
         <Text style={styles.subtituloHeader}>Panel de Administración</Text>
+        
+        {/* 🚦 INDICADOR DE ESTADO DE LA PUERTA */}
+        {puertaAbierta !== null && (
+          <View style={[styles.badgePuerta, puertaAbierta ? styles.badgePuertaAbierta : styles.badgePuertaCerrada]}>
+            <Text style={styles.textoBadgePuerta}>
+              {puertaAbierta ? "🟢 PUERTA ABIERTA" : "🔴 PUERTA CERRADA"}
+            </Text>
+          </View>
+        )}
+        
+        {/* 📊 CONTADOR DE PILOTOS Y PLAZAS */}
+        <View style={styles.estadisticas}>
+          <View style={styles.estatItem}>
+            <Text style={styles.estatNumero}>{totalPilotos}</Text>
+            <Text style={styles.estatLabel}>Pilotos Registrados</Text>
+          </View>
+          <View style={styles.estatItem}>
+            <Text style={styles.estatNumero}>{plazasOcupadas}/128</Text>
+            <Text style={styles.estatLabel}>Plazas en Carreras</Text>
+          </View>
+        </View>
       </View>
 
       {/* INDICADOR DE CARGA */}
@@ -195,6 +267,7 @@ export default function AdminScreen() {
         <Boton titulo="📝 Gestionar Carreras y Resultados" color="#003049" onPress={() => navigation.navigate("GestionCarrerasScreen")} />
         <Boton titulo="👥 Lista y Control de Pilotos" color="#003049" onPress={() => navigation.navigate("GestionPilotosScreen")} />
         <Boton titulo="🔄 Mover Pilotos de Carrera" color="#0077b6" onPress={() => navigation.navigate("MoverPilotosScreen")} />
+        <Boton titulo="📋 Ver Logs de Auditoría" color="#6a4c93" onPress={() => navigation.navigate("LogsScreen")} />
         
         <View style={styles.separador} />
         
@@ -247,7 +320,20 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, backgroundColor: "#f5f6fa", padding: 15 },
   header: { alignItems: "center", marginBottom: 20, marginTop: 10 },
   tituloHeader: { fontSize: 28, fontWeight: "bold", color: "#003049" },
-  subtituloHeader: { fontSize: 14, color: "#666" },
+  subtituloHeader: { fontSize: 14, color: "#666", marginBottom: 12 },
+  
+  // 🚦 Estilos del Badge de Puerta
+  badgePuerta: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, marginTop: 8, borderWidth: 2 },
+  badgePuertaAbierta: { backgroundColor: "#d4edda", borderColor: "#28a745" },
+  badgePuertaCerrada: { backgroundColor: "#f8d7da", borderColor: "#dc3545" },
+  textoBadgePuerta: { fontSize: 13, fontWeight: "bold", letterSpacing: 0.5 },
+  
+  // 📊 Estilos de Estadísticas
+  estadisticas: { flexDirection: "row", justifyContent: "space-around", width: "100%", marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: "#ddd" },
+  estatItem: { alignItems: "center" },
+  estatNumero: { fontSize: 24, fontWeight: "bold", color: "#003049" },
+  estatLabel: { fontSize: 12, color: "#666", marginTop: 4 },
+  
   cargandoOverlay: { backgroundColor: "rgba(255,255,255,0.8)", padding: 15, borderRadius: 10, alignItems: "center", marginBottom: 15 },
   textoCargando: { marginTop: 10, fontWeight: "bold", color: "#003049" },
   tarjeta: { backgroundColor: "#fff", padding: 20, borderRadius: 12, marginBottom: 15, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },

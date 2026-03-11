@@ -3,19 +3,19 @@ import { useNavigation } from "@react-navigation/native";
 import { collection, doc, onSnapshot, updateDoc, writeBatch } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Button,
-  Linking, // <-- IMPORTANTE: Añadido para abrir WhatsApp
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Button,
+    Linking, // <-- IMPORTANTE: Añadido para abrir WhatsApp
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { db } from "../services/firebaseConfig";
-import { Carrera } from "../types/entities";
+import { db } from "../../services/firebaseConfig";
+import { Carrera } from "../../types/entities";
 
 export default function GestionCarrerasScreen() {
   const navigation = useNavigation();
@@ -64,7 +64,7 @@ export default function GestionCarrerasScreen() {
     try {
       const carreraRef = doc(db, "carreras", carreraSeleccionada.id);
       await updateDoc(carreraRef, { hora: horaCarrera });
-      Alert.alert("¡Hora guardada!", `La carrera ahora está programada a las ${horaCarrera}`);
+      Alert.alert("✅ HORA PROGRAMADA", `La carrera se ha programado correctamente para las ${horaCarrera}.\n\nLos pilotos podrán verla en su perfil.`);
     } catch (error) {
       console.error(error);
       Alert.alert("Error", "No se pudo guardar la hora.");
@@ -76,7 +76,7 @@ export default function GestionCarrerasScreen() {
     try {
       const carreraRef = doc(db, "carreras", carreraSeleccionada.id);
       await updateDoc(carreraRef, { estado: "en_curso" });
-      Alert.alert("¡Semáforo en verde! 🟢", "La carrera está EN CURSO.");
+      Alert.alert("🟢 CARRERA INICIADA", "El semáforo está en verde. La carrera está EN CURSO.\n\nLos pilotos verán el estado actualizado en tiempo real.");
     } catch (error) {
       console.error(error);
       Alert.alert("Error", "No se pudo cambiar el estado.");
@@ -86,7 +86,7 @@ export default function GestionCarrerasScreen() {
   // 📲 NUEVA FUNCIÓN: AVISAR POR WHATSAPP
   const avisarPorWhatsApp = () => {
     if (!carreraSeleccionada || !carreraSeleccionada.participantes || carreraSeleccionada.participantes.length === 0) {
-      Alert.alert("Aviso", "No hay pilotos en esta carrera para avisar.");
+      Alert.alert("ℹ️ CARRERA VACÍA", "No hay pilotos asignados a esta carrera todavía.\n\nAsigna pilotos desde 'Mover Pilotos' antes de intentar contactarlos.");
       return;
     }
     
@@ -95,7 +95,7 @@ export default function GestionCarrerasScreen() {
     const mensaje = `*¡ATENCIÓN PILOTOS!* \nLa *${carreraSeleccionada.nombre_carrera}* está a punto de comenzar${hora}.\n\nParticipantes: ${nombres}\n\n¡Acudid inmediatamente a la zona de pista! `;
     
     const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
-    Linking.openURL(url).catch(() => Alert.alert("Error", "No se pudo abrir WhatsApp."));
+    Linking.openURL(url).catch(() => Alert.alert("❌ ERROR", "No se pudo abrir WhatsApp. Verifica que tienes la aplicación instalada."));
   };
 
   const guardarResultados = async () => {

@@ -4,24 +4,29 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { collection, onSnapshot } from "firebase/firestore";
 import React, { useEffect, useLayoutEffect, useState } from "react";
 import { ActivityIndicator, Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { db } from "../services/firebaseConfig";
-import { Carrera } from "../types/entities";
 
+// 🧠 CEREBRO DEL TORNEO
+import { TorneoConfig } from "../../config/torneoConfig";
+import { db } from "../../services/firebaseConfig";
+import { Carrera } from "../../types/entities";
+
+// Tipo especial para manejar los huecos vacíos en el bracket
 type CarreraOHueco = (Carrera & { id: string }) | { id: string; nombre_carrera: string; vacio: boolean };
 
 export default function PantallaGiganteScreen() {
   const navigation = useNavigation();
+  
+  // 💾 ESTADOS
   const [carreras, setCarreras] = useState<(Carrera & { id: string })[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [zoom, setZoom] = useState(0.85); 
+  const [zoom, setZoom] = useState(0.85); // Zoom inicial reducido para móviles
 
   // 🚫 ELIMINA LA BARRA BLANCA SUPERIOR
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: false,
-    });
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
+  // 📡 LISTENER: Sincronización del bracket
   useEffect(() => {
     const carrerasRef = collection(db, "carreras");
     const unsubscribe = onSnapshot(carrerasRef, (snapshot) => {
@@ -32,19 +37,22 @@ export default function PantallaGiganteScreen() {
     return () => unsubscribe();
   }, []);
 
+  // ⏳ PANTALLA DE CARGA
   if (cargando) {
     return (
-      <LinearGradient colors={['#050814', '#170c2b', '#481f5c']} style={styles.center}>
-        <ActivityIndicator size="large" color="#8b48ba" />
+      <LinearGradient colors={TorneoConfig.colores.fondoGradiente as any} style={styles.center}>
+        <ActivityIndicator size="large" color={TorneoConfig.colores.primario} />
         <Text style={styles.textoCargando}>CARGANDO DATOS DE PISTA...</Text>
       </LinearGradient>
     );
   }
 
+  // 🔍 CONTROLES DE ZOOM
   const aumentarZoom = () => { if (zoom < 2) setZoom(zoom + 0.25); };
   const reducirZoom = () => { if (zoom > 0.5) setZoom(zoom - 0.25); };
   const resetearZoom = () => { setZoom(1); };
 
+  // 🏗️ FUNCIÓN: Crea las tarjetas vacías ("Huecos") si la carrera aún no existe en DB
   const generarHuecos = (fase: string, totalHuecos: number, prefijo: string): CarreraOHueco[] => {
     const carrerasFase = carreras
       .filter(c => c.fase === fase)
@@ -64,6 +72,7 @@ export default function PantallaGiganteScreen() {
     return resultado;
   };
 
+  // 🚥 FUNCIÓN: Decide si el piloto "Pasa" o "No Pasa" de ronda
   const getEstiloPiloto = (fase: string, posicion: number) => {
     let pasa = false;
     if (fase === "clasificatoria" && posicion <= 2) pasa = true; 
@@ -72,18 +81,23 @@ export default function PantallaGiganteScreen() {
     if (fase === "final_b" && posicion <= 2) pasa = true; 
     if (fase === "final" && posicion <= 3) pasa = true; 
 
-    // Colores corporativos para el "Pasa/No Pasa"
     return [
       styles.filaPiloto, 
-      pasa ? styles.fondoVerde : styles.fondoRojo
+      pasa ? { 
+        backgroundColor: `${TorneoConfig.colores.acento}1A`, // Cyan con 10% opacidad (1A hex)
+        borderLeftWidth: 2, 
+        borderLeftColor: TorneoConfig.colores.acento 
+      } : styles.fondoRojo // Si no pasa, se queda gris oscuro
     ];
   };
 
+  // 🃏 COMPONENTE INTERNO: Dibuja una Tarjeta de Carrera (Llena o Vacía)
   const RenderTarjeta = ({ item, esGranFinal = false, esCompacta = false }: { item: CarreraOHueco, esGranFinal?: boolean, esCompacta?: boolean }) => {
     const paddingTarjeta = esGranFinal ? 15 : (esCompacta ? 6 : 10);
     const sizeTitulo = esGranFinal ? 14 : (esCompacta ? 10 : 12);
     const sizePiloto = esGranFinal ? 12 : (esCompacta ? 9 : 11);
 
+    // Si es un HUECO (Aún no se ha generado la carrera)
     if ("vacio" in item) {
       return (
         <View style={[styles.tarjetaVacia, { padding: paddingTarjeta, width: esCompacta ? '48%' : '100%' }]}>
@@ -93,19 +107,28 @@ export default function PantallaGiganteScreen() {
       );
     }
 
+    // Si es una CARRERA REAL
     const carrera = item as Carrera & { id: string };
     let colorBorde = esGranFinal ? "#ffd700" : "rgba(255, 255, 255, 0.1)";
-    if (carrera.estado === "en_curso") colorBorde = "#e63946";
+    if (carrera.estado === "en_curso") colorBorde = TorneoConfig.colores.secundario; // Rojo si está Live
     
     return (
       <View style={[styles.tarjetaCristal, { borderColor: colorBorde, padding: paddingTarjeta, width: esCompacta ? '48%' : '100%' }]}>
+        
+        {/* Cabecera Tarjeta */}
         <View style={styles.cabeceraTarjeta}>
-          <Text style={[styles.nombreCarrera, { color: esGranFinal ? '#ffd700' : '#00f0ff', fontSize: sizeTitulo }]} numberOfLines={1}>
+          <Text style={[styles.nombreCarrera, { color: esGranFinal ? '#ffd700' : TorneoConfig.colores.acento, fontSize: sizeTitulo }]} numberOfLines={1}>
             {carrera.nombre_carrera.toUpperCase()}
           </Text>
-          {carrera.estado === "en_curso" && <View style={styles.badgeLive}><View style={styles.puntoRojo}/><Text style={styles.estadoEnCurso}>LIVE</Text></View>}
+          {carrera.estado === "en_curso" && (
+            <View style={[styles.badgeLive, { borderColor: TorneoConfig.colores.secundario, backgroundColor: `${TorneoConfig.colores.secundario}33` }]}>
+              <View style={styles.puntoRojo}/>
+              <Text style={[styles.estadoEnCurso, { color: TorneoConfig.colores.secundario }]}>LIVE</Text>
+            </View>
+          )}
         </View>
         
+        {/* Contenido (Pilotos o Hora) */}
         {carrera.estado === "finalizada" ? (
           <View style={styles.listaPilotos}>
             {carrera.participantes
@@ -121,16 +144,15 @@ export default function PantallaGiganteScreen() {
                     adjustsFontSizeToFit
                     minimumFontScale={0.6}
                   >
-                    <Text style={{fontWeight: '900', color: colorOro}}>
-                      P{p.posicion}
-                    </Text>{"  "}{p.nombre.toUpperCase()}
+                    <Text style={{fontWeight: '900', color: colorOro}}>P{p.posicion}</Text>
+                    {"  "}{p.nombre.toUpperCase()}
                   </Text>
                 </View>
               )})}
           </View>
         ) : (
           <Text style={[styles.textoPilotoGris, { fontSize: sizePiloto }]}>
-            <Ionicons name="time-outline" size={sizePiloto} color="#8b48ba"/> {carrera.hora ? carrera.hora : "No definida"}
+            <Ionicons name="time-outline" size={sizePiloto} color={TorneoConfig.colores.primario}/> {carrera.hora ? carrera.hora : "No definida"}
           </Text>
         )}
       </View>
@@ -139,9 +161,9 @@ export default function PantallaGiganteScreen() {
 
   return (
     <LinearGradient
-      colors={['#050814', '#170c2b', '#1a0524']} // Fondo oscuro para que no moleste a la vista el cuadro gigante
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+      // Fondo más oscuro para el Bracket para no cansar la vista
+      colors={['#050814', '#170c2b', '#1a0524']} 
+      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
       style={styles.container}
     >
       <SafeAreaView style={{flex: 1}}>
@@ -149,17 +171,13 @@ export default function PantallaGiganteScreen() {
         {/* 👑 HEADER CON CONTROLES DE ZOOM */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.botonVolver} onPress={() => navigation.goBack()}>
-             <Ionicons name="chevron-back" size={24} color="#e1e1e1" />
-             <Text style={styles.textoBotonVolver}>BOX</Text>
+            <Ionicons name="chevron-back" size={24} color="#e1e1e1" />
+            <Text style={styles.textoBotonVolver}>BOX</Text>
           </TouchableOpacity>
           
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Image 
-                source={require('../assets/Logo Kaizo Sim blanco.png')} 
-                style={styles.logoPequeño}
-                resizeMode="contain"
-            />
-            <Text style={styles.ayudaZoom}>ZOOM: {Math.round(zoom * 100)}%</Text>
+            <Image source={require('../../assets/Logo Kaizo Sim blanco.png')} style={styles.logoPequeño} resizeMode="contain"/>
+            <Text style={[styles.ayudaZoom, { color: TorneoConfig.colores.primario }]}>ZOOM: {Math.round(zoom * 100)}%</Text>
           </View>
           
           <View style={styles.controlesZoom}>
@@ -167,7 +185,7 @@ export default function PantallaGiganteScreen() {
               <Ionicons name="add" size={18} color={zoom >= 2 ? "#555" : "#e1e1e1"} />
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.botonZoom100} onPress={resetearZoom}>
+            <TouchableOpacity style={[styles.botonZoom100, { backgroundColor: `${TorneoConfig.colores.primario}66`, borderColor: TorneoConfig.colores.primario }]} onPress={resetearZoom}>
               <Text style={styles.textoResetZoom}>100%</Text>
             </TouchableOpacity>
             
@@ -181,6 +199,7 @@ export default function PantallaGiganteScreen() {
         <ScrollView horizontal bounces={false} contentContainerStyle={{ flexGrow: 1 }} showsHorizontalScrollIndicator={true}>
           <ScrollView bounces={false} contentContainerStyle={[styles.board, { transform: [{ scale: zoom }] }]} showsVerticalScrollIndicator={true}>
             
+            {/* COLUMNA 1 */}
             <View style={styles.columnaAncha}>
               <Text style={styles.tituloColumna}>RONDA 1: CLASIFICATORIAS</Text>
               <View style={styles.gridClasificatorias}>
@@ -188,25 +207,28 @@ export default function PantallaGiganteScreen() {
               </View>
             </View>
 
+            {/* COLUMNA 2 */}
             <View style={styles.columnaMedia}>
               <View style={styles.mitadSuperior}>
-                <Text style={[styles.tituloColumna, {color: '#8b48ba'}]}>SEMIFINALES A</Text>
+                <Text style={[styles.tituloColumna, {color: TorneoConfig.colores.primario}]}>SEMIFINALES A</Text>
                 {generarHuecos("semifinal_a", 2, "Semi A").map(c => <RenderTarjeta key={c.id} item={c} />)}
               </View>
               <View style={styles.mitadInferior}>
-                <Text style={[styles.tituloColumna, {color: '#8b48ba'}]}>SEMIFINALES B</Text>
+                <Text style={[styles.tituloColumna, {color: TorneoConfig.colores.primario}]}>SEMIFINALES B</Text>
                 {generarHuecos("semifinal_b", 2, "Semi B").map(c => <RenderTarjeta key={c.id} item={c} />)}
               </View>
             </View>
 
+            {/* COLUMNA 3 */}
             <View style={styles.columnaFinalB}>
               <View style={{ flex: 1 }} /> 
               <View style={styles.mitadInferior}>
-                <Text style={[styles.tituloColumna, {color: '#00f0ff'}]}>REPESCA (FINAL B)</Text>
+                <Text style={[styles.tituloColumna, {color: TorneoConfig.colores.acento}]}>REPESCA (FINAL B)</Text>
                 {generarHuecos("final_b", 1, "").map(c => <RenderTarjeta key={c.id} item={c} />)}
               </View>
             </View>
 
+            {/* COLUMNA 4 */}
             <View style={styles.columnaGigante}>
               <View style={{ flex: 1, justifyContent: 'center' }}>
                 <Text style={[styles.tituloColumna, {color: '#ffd700', fontSize: 20}]}>LA GRAN FINAL</Text>
@@ -219,16 +241,16 @@ export default function PantallaGiganteScreen() {
 
         {/* 📜 LEYENDA INFERIOR */}
         <View style={styles.leyenda}>
-          <Text style={styles.leyendaTitulo}>REGLAS:</Text>
+          <Text style={[styles.leyendaTitulo, { color: TorneoConfig.colores.primario }]}>REGLAS:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.reglasContainer}>
-              <Text style={styles.textoReglaCompacta}><Text style={styles.posDestacada}>P1</Text>→<Text style={styles.faseA}>A</Text></Text>
+              <Text style={styles.textoReglaCompacta}><Text style={styles.posDestacada}>P1</Text>→<Text style={[styles.faseA, { color: TorneoConfig.colores.primario }]}>A</Text></Text>
               <View style={styles.separador} />
-              <Text style={styles.textoReglaCompacta}><Text style={styles.posDestacada}>P2</Text>→<Text style={styles.faseB}>B</Text></Text>
+              <Text style={styles.textoReglaCompacta}><Text style={styles.posDestacada}>P2</Text>→<Text style={[styles.faseB, { color: TorneoConfig.colores.primario }]}>B</Text></Text>
               <View style={styles.separador} />
               <Text style={styles.textoReglaCompacta}><Text style={styles.posDestacada}>Top3</Text> A→<Text style={styles.faseFinal}>Final</Text></Text>
               <View style={styles.separador} />
-              <Text style={styles.textoReglaCompacta}><Text style={styles.posDestacada}>Top4</Text> B→<Text style={styles.faseFinalB}>FB</Text></Text>
+              <Text style={styles.textoReglaCompacta}><Text style={styles.posDestacada}>Top4</Text> B→<Text style={[styles.faseFinalB, { color: TorneoConfig.colores.acento }]}>FB</Text></Text>
               <View style={styles.separador} />
               <Text style={styles.textoReglaCompacta}><Text style={styles.posDestacada}>Top2</Text> FB→<Text style={styles.faseFinal}>Final</Text></Text>
             </View>
@@ -240,6 +262,9 @@ export default function PantallaGiganteScreen() {
   );
 }
 
+// ==========================================
+// 🎨 HOJA DE ESTILOS
+// ==========================================
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
@@ -247,36 +272,24 @@ const styles = StyleSheet.create({
   
   // HEADER
   header: { 
-    flexDirection: 'row', 
-    backgroundColor: 'rgba(0,0,0,0.5)', 
-    paddingHorizontal: 10, 
-    paddingTop: 15, // Notch
-    paddingBottom: 15,
-    borderBottomWidth: 1, 
-    borderBottomColor: "rgba(255,255,255,0.05)", 
-    alignItems: "center",
-    justifyContent: "space-between" 
+    flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.5)', 
+    paddingHorizontal: 10, paddingTop: 15, paddingBottom: 15, // paddingTop ajusta el Notch
+    borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.05)", 
+    alignItems: "center", justifyContent: "space-between" 
   },
   botonVolver: { flexDirection: 'row', alignItems: 'center', width: 80 },
   textoBotonVolver: { color: "#e1e1e1", fontWeight: "bold", fontSize: 12, letterSpacing: 1 },
   logoPequeño: { width: 90, height: 25 },
-  ayudaZoom: { fontSize: 9, color: "#8b48ba", marginTop: 2, letterSpacing: 1, fontWeight: 'bold' },
+  ayudaZoom: { fontSize: 9, marginTop: 2, letterSpacing: 1, fontWeight: 'bold' },
   
   // CONTROLES ZOOM
   controlesZoom: { flexDirection: 'row', gap: 6, alignItems: 'center' },
   botonZoom: { 
-    width: 28, height: 28, 
-    backgroundColor: 'rgba(255,255,255,0.05)', 
-    borderRadius: 6, 
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center', justifyContent: 'center'
+    width: 28, height: 28, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 6, 
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center'
   },
   botonZoom100: {
-    paddingHorizontal: 8, height: 28,
-    backgroundColor: 'rgba(104, 53, 140, 0.4)', // Morado Kaizō
-    borderRadius: 6, 
-    borderWidth: 1, borderColor: '#8b48ba',
-    alignItems: 'center', justifyContent: 'center'
+    paddingHorizontal: 8, height: 28, borderRadius: 6, borderWidth: 1, alignItems: 'center', justifyContent: 'center'
   },
   botonZoomDesactivado: { borderColor: 'rgba(255,255,255,0.05)', backgroundColor: 'transparent' },
   textoResetZoom: { color: '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
@@ -293,17 +306,13 @@ const styles = StyleSheet.create({
   
   tituloColumna: { color: "#e1e1e1", fontSize: 10, fontWeight: "900", textAlign: "center", marginBottom: 12, letterSpacing: 2 },
   
-  // TARJETAS (GLASSMORPHISM)
+  // TARJETAS (Glassmorphism)
   tarjetaCristal: { 
-    backgroundColor: 'rgba(12, 12, 15, 0.8)', 
-    borderRadius: 6, 
-    marginBottom: 8, 
-    borderWidth: 1,
+    backgroundColor: 'rgba(12, 12, 15, 0.8)', borderRadius: 6, marginBottom: 8, borderWidth: 1,
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 5, elevation: 5
   },
   tarjetaVacia: { 
-    backgroundColor: "transparent", 
-    borderRadius: 6, marginBottom: 8, 
+    backgroundColor: "transparent", borderRadius: 6, marginBottom: 8, 
     borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", borderStyle: 'dashed', 
     alignItems: 'center', justifyContent: 'center' 
   },
@@ -311,27 +320,26 @@ const styles = StyleSheet.create({
   nombreCarrera: { fontWeight: "900", flex: 1, letterSpacing: 0.5 },
   nombreCarreraVacia: { color: "#555", fontWeight: "900", marginBottom: 3, letterSpacing: 0.5 },
   
-  badgeLive: { flexDirection: 'row', alignItems: 'center', gap:4, backgroundColor: 'rgba(230, 57, 70, 0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3, borderWidth: 1, borderColor: '#e63946' },
+  badgeLive: { flexDirection: 'row', alignItems: 'center', gap:4, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3, borderWidth: 1 },
   puntoRojo: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#fff' },
-  estadoEnCurso: { color: "#e63946", fontSize: 9, fontWeight: "900", letterSpacing: 1 },
+  estadoEnCurso: { fontSize: 9, fontWeight: "900", letterSpacing: 1 },
   
   // LISTA PILOTOS
   listaPilotos: { marginTop: 0 },
   filaPiloto: { paddingHorizontal: 6, borderRadius: 3, marginBottom: 2 },
-  fondoVerde: { backgroundColor: 'rgba(0, 240, 255, 0.1)', borderLeftWidth: 2, borderLeftColor: '#00f0ff' }, // Pasa = Cyan brillante
-  fondoRojo: { backgroundColor: 'rgba(255, 255, 255, 0.02)', borderLeftWidth: 2, borderLeftColor: '#333' }, // No Pasa = Oscuro/Gris
+  fondoRojo: { backgroundColor: 'rgba(255, 255, 255, 0.02)', borderLeftWidth: 2, borderLeftColor: '#333' }, // No Pasa
   textoPilotoNombre: { color: "#e1e1e1", fontWeight: "600", letterSpacing: 0.5 },
   textoPilotoGris: { color: "#666", fontStyle: "italic", marginTop: 2, letterSpacing: 0.5 },
 
   // LEYENDA INFERIOR
   leyenda: { backgroundColor: "rgba(0,0,0,0.8)", paddingVertical: 10, paddingHorizontal: 15, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.05)", flexDirection: 'row', alignItems: 'center', gap: 10 },
-  leyendaTitulo: { color: '#8b48ba', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  leyendaTitulo: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   reglasContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   textoReglaCompacta: { color: '#aaa', fontSize: 10, letterSpacing: 0.5 },
   separador: { width: 1, height: 12, backgroundColor: '#333', marginHorizontal: 2 },
   posDestacada: { fontWeight: '900', color: '#e1e1e1', fontSize: 10 },
-  faseA: { color: '#8b48ba', fontWeight: 'bold', fontSize: 10 },
-  faseB: { color: '#8b48ba', fontWeight: 'bold', fontSize: 10 },
-  faseFinalB: { color: '#00f0ff', fontWeight: 'bold', fontSize: 10 },
+  faseA: { fontWeight: 'bold', fontSize: 10 },
+  faseB: { fontWeight: 'bold', fontSize: 10 },
+  faseFinalB: { fontWeight: 'bold', fontSize: 10 },
   faseFinal: { color: '#ffd700', fontWeight: 'bold', fontSize: 10 }
 });
