@@ -3,16 +3,16 @@ import { useNavigation } from "@react-navigation/native";
 import { collection, doc, onSnapshot, updateDoc, writeBatch } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Button,
-    Linking, // <-- IMPORTANTE: Añadido para abrir WhatsApp
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Button,
+  Linking, // <-- IMPORTANTE: Añadido para abrir WhatsApp
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { db } from "../../services/firebaseConfig";
 import { Carrera } from "../../types/entities";
@@ -94,7 +94,7 @@ export default function GestionCarrerasScreen() {
     const hora = horaCarrera ? ` a las ${horaCarrera}` : " en breve";
     const mensaje = `*¡ATENCIÓN PILOTOS!* \nLa *${carreraSeleccionada.nombre_carrera}* está a punto de comenzar${hora}.\n\nParticipantes: ${nombres}\n\n¡Acudid inmediatamente a la zona de pista! `;
     
-    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
     Linking.openURL(url).catch(() => Alert.alert("❌ ERROR", "No se pudo abrir WhatsApp. Verifica que tienes la aplicación instalada."));
   };
 
