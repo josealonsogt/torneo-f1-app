@@ -55,8 +55,5 @@ Vista pública pensada para espectadores y eventos presenciales.
 - **Base de datos:** Firestore (tiempo real)
 - **Diseño:** Brutalismo UI, alto contraste y tipografía agresiva
 
----
-
-
 
 
