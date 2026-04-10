@@ -25,7 +25,7 @@ export const limpiarJugadores = async (): Promise<boolean> => {
 export const generarPilotosPrueba = async (): Promise<boolean> => {
   try {
     // Vamos a crear 128 pilotos y meterlos por la puerta principal uno a uno
-    for (let i = 1; i <= 32; i++) {
+    for (let i = 1; i <= 90; i++) {
       const nombre = `Piloto Bot ${i}`;
       const correo = `bot${i}@test.com`;
       const dni = `${i}`;
