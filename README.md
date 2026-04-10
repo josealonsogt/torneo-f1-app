@@ -57,9 +57,6 @@ Vista pública pensada para espectadores y eventos presenciales.
 
 ---
 
-# 🚀 Cómo probarlo en tu ordenador
 
-Este proyecto es **100% Open Source**.  
-Si quieres descargarlo, probarlo o adaptarlo para tu propio torneo:
 
 
