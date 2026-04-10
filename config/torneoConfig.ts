@@ -4,8 +4,7 @@ export const TorneoConfig = {
   // 📝 1. TEXTOS Y DATOS DEL TORNEO
   nombreLargo: "MATSURI RACING",
   subtitulo: "TORNEO OFICIAL",
-  whatsappGrupo: "https://chat.whatsapp.com/PON_AQUI_TU_ENLACE",
-  
+  whatsappGrupo: "https://chat.whatsapp.com/E6N92rpfsbZG6yoLkwwjPu?mode=gi_",
   // ⚙️ 2. REGLAS DE CARRERA (¡Se acabó buscar el número 8 por el código!)
   maxParticipantesPorCarrera: 8,
   carrerasPorBloque: 4, // Agrupa de 4 en 4 para llenar primero esas 32 plazas
