@@ -1,56 +1,128 @@
-# 🏁 Matsuri Racing - Kaizō Sim
+# 🏁 Matsuri Racing — Kaizō Sim
 
-![Estado](https://img.shields.io/badge/Estado-En_Producción-success?style=for-the-badge)
-![Open Source](https://img.shields.io/badge/Open_Source-Sí-blue?style=for-the-badge)
+![Estado](https://img.shields.io/badge/Estado-Portfolio-purple?style=for-the-badge)
+![React Native](https://img.shields.io/badge/React_Native-Expo-blue?style=for-the-badge)
+![Firebase](https://img.shields.io/badge/Firebase-Firestore-orange?style=for-the-badge)
 
-**Matsuri Racing** es una plataforma completa de gestión de torneos de **SimRacing** desarrollada para **Kaizō Sim**. 
-Permite controlar todo el flujo de un evento: desde la inscripción de pilotos hasta la generación automática de la **Gran Final**, incluyendo un *Live Timing* público y avisos por **WhatsApp**[cite: 1].
+Plataforma para gestionar torneos de **SimRacing**, desarrollada para **Kaizō Sim**. Centraliza inscripciones, carreras, clasificación entre rondas y resultados en tiempo real para organizadores, pilotos y espectadores.
 
-👉 **[PROBAR LA APP EN VIVO AQUÍ](https://torneo-matsuri.vercel.app)** 👈  
-📄 **[Ver Manual de Usuario y Documentación (PDF)](./kaizo%20sim%20aplicacion.pdf)**
+**[🚀 Abrir aplicación](https://torneo-matsuri.vercel.app/)** · **[📄 Ver manual](docs/kaizo-sim-aplicacion.pdf)** · **[⬇️ Obtener PDF](https://github.com/josealonsogt/torneo-f1-app/raw/refs/heads/main/docs/kaizo-sim-aplicacion.pdf)**
 
----
+## 📸 Capturas
 
-## 🔐 Acceso de Prueba (Administrador)
+### Acceso al torneo
 
-Para probar todas las funcionalidades del panel de control, puedes utilizar las credenciales de administrador:
-*   **Usuario:** `admin`[cite: 1]
-*   **Correo:** `admin@torneo.com`[cite: 1]
-*   **Contraseña:** `admin`[cite: 1]
+![Pantalla de acceso a Matsuri Racing](docs/images/login.png)
 
-*Nota sobre el login:* Al registrarse como nuevo jugador, se pide nombre, correo y DNI. Sin embargo, el DNI es el identificador principal; si se introduce un DNI previamente registrado, el sistema accederá a ese perfil existente[cite: 1].
+### Centro de Mando
 
----
+![Panel de administración del torneo](docs/images/admin.png)
 
-## 🏎️ ¿Qué hace la aplicación?
+### Generación de rondas y herramientas
 
-La app está dividida en **3 grandes bloques** para que el torneo fluya sin interrupciones:
+![Herramientas para generar rondas y mantener el torneo](docs/images/herramientas.png)
 
-### 👑 Centro de Mando (Admin)
-Panel de control para los organizadores del torneo[cite: 1].
-*   Creación automática de las 16 clasificatorias[cite: 1].
-*   Generación elástica de Semifinales y Finales (avanzan los ganadores)[cite: 2].
-*   Asignación de posiciones y tiempos[cite: 1].
-*   Botón de aviso rápido a los pilotos por WhatsApp[cite: 1].
-*   Logs de Auditoría para visualizar el registro de todos los cambios logísticos[cite: 2].
+## 🔐 Acceso al panel de administración
 
-### 🚦 Tu Box (Pilotos)
-Cada piloto tiene su propio espacio dentro de la plataforma.
-*   Perfil personal de piloto (Box)[cite: 3].
-*   Estado en tiempo real dentro del torneo (En Lista de Espera, Clasificado, Eliminado)[cite: 3].
-*   Historial completo de todas las carreras disputadas[cite: 3].
+En el formulario de entrada introduce:
 
-### 📺 Live Timing & Pantalla Gigante
-Vista pública pensada para espectadores y eventos presenciales.
-*   Seguimiento en directo del torneo[cite: 3].
-*   Vista Bracket / Cuadrante proyectable en grandes pantallas[cite: 2].
-*   Ideal para eventos físicos.
+| Campo de la aplicación | Valor |
+| --- | --- |
+| Nombre | `admin` |
+| Correo electrónico | `admin@torneo.com` |
+| DNI | `admin` |
 
----
+El manual original llama «contraseña» al último valor, pero la pantalla utiliza el **campo DNI**. Este acceso está implementado en `screens/usuarios/LoginScreen.tsx`.
 
-## 🛠️ Tecnologías Principales
+Los pilotos acceden con nombre, correo y DNI. El DNI identifica su perfil: introducir uno que ya esté registrado recupera ese piloto, aunque se escriban otros valores de nombre o correo.
 
-*   **Frontend:** React Native + Expo (Web, iOS y Android)
-*   **Backend:** Firebase
-*   **Base de datos:** Firestore (tiempo real)
-*   **Diseño:** Brutalismo UI, alto contraste y tipografía agresiva
+> El acceso administrativo publicado permite modificar el torneo. Para utilizarlo como demo pública, la instancia de Firebase debe contener únicamente datos ficticios. La documentación oculta los datos personales de las capturas; esto no modifica los datos de la aplicación desplegada.
+
+## 🏎️ Funcionalidades
+
+### 👑 Administración
+
+- Creación de las 16 clasificatorias iniciales y apertura o cierre de inscripciones.
+- Gestión de pilotos y carreras, registro de posiciones y DNF.
+- Generación de semifinales, repesca y Gran Final.
+- Movimiento manual de pilotos entre carreras.
+- Registro de acciones en logs de auditoría.
+- Exportación de resultados en CSV.
+- Preparación de avisos mediante WhatsApp.
+- Simulación de participantes, deshacer semifinales y reinicio del torneo.
+
+### 🚦 Box del piloto
+
+- Estado del participante y fase del torneo.
+- Carrera asignada e historial de posiciones.
+- Acceso al bracket y a los resultados de las demás carreras.
+
+### 📺 Live Timing y pantalla gigante
+
+- Resultados actualizados mediante Cloud Firestore.
+- Vista del cuadro de clasificatorias, semifinales, repesca y final.
+- Presentación del torneo para móviles y pantallas de eventos.
+
+## 🧠 Progresión del torneo
+
+El código actual aplica estas reglas al guardar los resultados de cada carrera:
+
+| Ronda | Posiciones que avanzan | Destino |
+| --- | --- | --- |
+| Clasificatoria | 1.º | Semifinal A |
+| Clasificatoria | 2.º | Semifinal B |
+| Semifinal A | 1.º a 3.º | Gran Final |
+| Semifinal B | 1.º a 4.º | Repesca / Final B |
+| Repesca / Final B | 1.º y 2.º | Gran Final |
+
+Las semifinales distribuyen a los clasificados en dos carreras por grupo. Deben guardarse los resultados de la ronda anterior antes de generar la siguiente.
+
+La implementación está en `screens/admin/GestionCarrerasScreen.tsx` y `services/torneoService.ts`. El manual conserva las capturas del evento original; su descripción de la Semifinal B debe interpretarse conforme a la tabla anterior.
+
+## 🛠️ Tecnologías y estructura
+
+- React Native, Expo SDK 54, React 19 y TypeScript / JavaScript.
+- React Navigation para la navegación.
+- Firebase y Cloud Firestore para los datos y actualizaciones en tiempo real.
+- Despliegue web en Vercel.
+
+| Directorio | Responsabilidad |
+| --- | --- |
+| `screens/admin/` | Administración y pantalla grande |
+| `screens/usuarios/` | Acceso, box y vistas del torneo |
+| `services/` | Firebase y lógica del torneo |
+| `navigation/` | Navegación de la aplicación |
+| `config/` | Configuración visual del torneo |
+| `types/` | Tipos de datos |
+| `docs/` | Manual público y capturas |
+
+## ⚙️ Ejecutar en local
+
+Utiliza una versión de Node.js compatible con Expo SDK 54.
+
+```bash
+git clone https://github.com/josealonsogt/torneo-f1-app.git
+cd torneo-f1-app
+npm install
+cp .env.example .env
+```
+
+Completa `.env` con la configuración de tu propia aplicación web de Firebase. Las seis variables `EXPO_PUBLIC_FIREBASE_*` del ejemplo se leen en `services/firebaseConfig.js`.
+
+```bash
+npm run web
+```
+
+También existen `npm run android`, `npm run ios` y `npm run build` para los entornos y la exportación web de Expo.
+
+Las variables `EXPO_PUBLIC_*` forman parte del cliente compilado. No deben contener claves privadas, cuentas de servicio ni secretos de servidor. El acceso a los datos debe limitarse mediante las reglas de Firestore de la instancia utilizada.
+
+## 📄 Documentación
+
+El [manual público](docs/kaizo-sim-aplicacion.pdf) reúne explicaciones y capturas del funcionamiento. Los datos personales se han eliminado de la versión distribuida. El enlace directo al PDF puede abrirlo en el navegador o descargarlo, según su configuración.
+
+## 🎯 Contexto y autor
+
+Proyecto desarrollado para una necesidad real: coordinar un torneo de SimRacing y mantener sincronizados organizadores, pilotos y espectadores. Su principal reto es gestionar el avance entre rondas y combinar administración con seguimiento en directo.
+
+Desarrollado por **[josealonsogt](https://github.com/josealonsogt)**.
